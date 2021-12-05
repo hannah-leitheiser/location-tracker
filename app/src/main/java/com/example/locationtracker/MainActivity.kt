@@ -1,12 +1,19 @@
 package com.example.locationtracker
 import android.Manifest
+import android.app.Activity
+import android.content.ContentResolver
+import android.content.ContentValues.TAG
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
+import android.net.Uri
 import android.os.Bundle
 import android.os.SystemClock
+import android.provider.DocumentsContract
+import android.provider.MediaStore
 import android.view.View
 import android.widget.Button
 import android.widget.TextView
@@ -14,11 +21,80 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.core.net.toUri
+import java.io.FileNotFoundException
+import java.io.FileOutputStream
+import java.io.IOException
+
+const val CREATE_FILE = 1
+
+
 class MainActivity : AppCompatActivity(), LocationListener {
     private lateinit var locationManager: LocationManager
     private lateinit var tvGpsLocation: TextView
     private val locationPermissionCode = 2
-    override fun onCreate(savedInstanceState: Bundle?) {
+    private val TAG = "MainActivity"
+    private val LAST_OPENED_URI_KEY =
+        "com.example.android.actionopendocument.pref.LAST_OPENED_URI_KEY"
+
+    //val contentResolver  = applicationContext.contentResolver
+
+
+
+    fun alterDocument(uri: Uri) {
+        try {
+            contentResolver.openFileDescriptor(uri, "w")?.use {
+                FileOutputStream(it.fileDescriptor).use {
+                    val theData = openFileInput("myfile").bufferedReader().lines()
+
+
+                    for( l in theData)
+                    it.write(
+
+
+
+                        l.toByteArray()
+                    )
+                }
+            }
+        } catch (e: FileNotFoundException) {
+            e.printStackTrace()
+        } catch (e: IOException) {
+            e.printStackTrace()
+        }
+    }
+
+
+
+    override fun onActivityResult(
+        requestCode: Int, resultCode: Int, resultData: Intent?) {
+        if (requestCode == CREATE_FILE
+            && resultCode == Activity.RESULT_OK
+        ) {
+            // The result data contains a URI for the document or directory that
+            // the user selected.
+            resultData?.data?.also { uri ->
+
+                alterDocument(uri)
+                // Perform operations on the document using its URI.
+            }
+        }
+    }
+        private fun createFile(pickerInitialUri: Uri) {
+            val intent = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
+                addCategory(Intent.CATEGORY_OPENABLE)
+                type = "application/text"
+                putExtra(Intent.EXTRA_TITLE, "data.txt")
+
+                // Optionally, specify a URI for the directory that should be opened in
+                // the system file picker before your app creates the document.
+                putExtra(DocumentsContract.EXTRA_INITIAL_URI, pickerInitialUri)
+            }
+            startActivityForResult(intent, CREATE_FILE)
+        }
+
+
+        override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
@@ -41,13 +117,24 @@ class MainActivity : AppCompatActivity(), LocationListener {
 
                     }
 
+
                 val fileContents = ""
                 openFileOutput("myfile", Context.MODE_PRIVATE).use {
                     it.write(fileContents.toByteArray())
                 }
 
 
-                }
+
+
+
+
+
+
+
+
+                createFile(MediaStore.Files.getContentUri("external"))
+
+            }
 
             }
         )
@@ -93,4 +180,8 @@ class MainActivity : AppCompatActivity(), LocationListener {
             }
         }
     }
+
+
+
+
 }
