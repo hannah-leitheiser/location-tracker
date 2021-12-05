@@ -1,88 +1,96 @@
 package com.example.locationtracker
-
 import android.Manifest
+import android.content.Context
 import android.content.pm.PackageManager
 import android.location.Location
-import androidx.appcompat.app.AppCompatActivity
+import android.location.LocationListener
+import android.location.LocationManager
 import android.os.Bundle
-import android.os.Looper
+import android.os.SystemClock
+import android.view.View
+import android.widget.Button
 import android.widget.TextView
+import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
-import com.google.android.gms.location.*
-
-class MainActivity : AppCompatActivity() {
-    private lateinit var fusedLocationClient: FusedLocationProviderClient
-    private lateinit var locationCallback: LocationCallback
-
+import androidx.core.content.ContextCompat
+class MainActivity : AppCompatActivity(), LocationListener {
+    private lateinit var locationManager: LocationManager
+    private lateinit var tvGpsLocation: TextView
+    private val locationPermissionCode = 2
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
+            getLocation()
 
-        if (ActivityCompat.checkSelfPermission(
-                this,
-                Manifest.permission.ACCESS_FINE_LOCATION
-            ) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(
-                this,
-                Manifest.permission.ACCESS_COARSE_LOCATION
-            ) != PackageManager.PERMISSION_GRANTED
-        ) {
-            // TODO: Consider calling
-            //    ActivityCompat#requestPermissions
-            // here to request the missing permissions, and then overriding
-            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
-            //                                          int[] grantResults)
-            // to handle the case where the user grants the permission. See the documentation
-            // for ActivityCompat#requestPermissions for more details.
-            return
+        var button = findViewById<Button>( R.id.button)
+
+        button.setOnClickListener(object : View.OnClickListener {
+            override fun onClick(v: View?) {
+                //your implementation goes here
+
+                openFileInput("myfile").bufferedReader().useLines {
+
+                        var tt = findViewById<TextView>(R.id.info)
+                        var text=""
+                        for(item in it)
+                            text=text+item.toString()
+
+                      tt.text = text.toString()
+
+                    }
+
+                val fileContents = ""
+                openFileOutput("myfile", Context.MODE_PRIVATE).use {
+                    it.write(fileContents.toByteArray())
+                }
+
+
+                }
+
+            }
+        )
+
+    }
+    private fun getLocation() {
+        locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
+        if ((ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED)) {
+            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), locationPermissionCode)
+        }
+        locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0, 0f, this)
+        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0f, this)
+        locationManager.requestLocationUpdates(LocationManager.FUSED_PROVIDER, 0, 0f, this)
+
+    }
+    override fun onLocationChanged(location: Location) {
+
+        val loc = location.elapsedRealtimeNanos / 1000000L
+        val tsLong = System.currentTimeMillis()
+        val bootTime = tsLong - (SystemClock.elapsedRealtimeNanos() / 1000000L)
+        val timeStamps = (loc + bootTime)
+        val delta = (location.elapsedRealtimeNanos / 1000L) - (SystemClock.elapsedRealtimeNanos() / 1000L)
+
+        val fileContents = "       " +(timeStamps/1000L).toString() + "\n"
+        val filename = "myfile"
+
+
+
+        val ts = tsLong.toString()
+        openFileOutput(filename, Context.MODE_APPEND).use {
+            it.write(fileContents.toByteArray())
         }
 
 
-        locationCallback = object : LocationCallback() {
-            override fun onLocationResult(locationResult: LocationResult?) {
-                locationResult ?: return
-                for (location in locationResult.locations) {
-                    val textView = findViewById<TextView>(R.id.info)
-                    textView.text = location.toString()
-
-                    // Update UI with location data
-                    // ...
-                }
+    }
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        if (requestCode == locationPermissionCode) {
+            if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                Toast.makeText(this, "Permission Granted", Toast.LENGTH_SHORT).show()
+            }
+            else {
+                Toast.makeText(this, "Permission Denied", Toast.LENGTH_SHORT).show()
             }
         }
-
-    createLocationRequest()
     }
-
-    fun createLocationRequest() {
-        val locationRequest = LocationRequest.create()?.apply {
-            interval = 0
-            fastestInterval = 0
-            priority = LocationRequest.PRIORITY_HIGH_ACCURACY
-        }
-
-        if (ActivityCompat.checkSelfPermission(
-                this,
-                Manifest.permission.ACCESS_FINE_LOCATION
-            ) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(
-                this,
-                Manifest.permission.ACCESS_COARSE_LOCATION
-            ) != PackageManager.PERMISSION_GRANTED
-        ) {
-            // TODO: Consider calling
-            //    ActivityCompat#requestPermissions
-            // here to request the missing permissions, and then overriding
-            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
-            //                                          int[] grantResults)
-            // to handle the case where the user grants the permission. See the documentation
-            // for ActivityCompat#requestPermissions for more details.
-            return
-        }
-        fusedLocationClient.requestLocationUpdates(locationRequest,
-            locationCallback,
-            Looper.getMainLooper())
-    }
-
-
 }
