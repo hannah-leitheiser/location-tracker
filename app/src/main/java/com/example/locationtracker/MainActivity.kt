@@ -31,6 +31,28 @@ import java.io.FileNotFoundException
 import java.io.FileOutputStream
 import java.io.IOException
 
+fun formatData( phoneName : String, timeStamp : Long, measurementType : String, propertyArray : Array<Array<String>>): String {
+    var outputJSON = "{ \"source\"            : \"" + phoneName + "\",\n" +
+                     "  \"timestamp\"         : \"" + timeStamp.toString() + "\",\n"
+                     "  \"measurement_type\"  : \"" + measurementType + "\",\n"
+
+    outputJSON = outputJSON +
+                     "  \"data\"              : [ \n"
+    for(i in 0..propertyArray.size-1 ) {
+
+        outputJSON =
+            outputJSON + "     \"" + propertyArray[i][0] + "\" : \"" + propertyArray[i][1] + "\""
+        if (i < propertyArray.size-1)
+            outputJSON = outputJSON + ",\n"
+        else
+            outputJSON = outputJSON + " ] \n"
+    }
+    outputJSON = outputJSON + "}\n\n"
+    return outputJSON
+}
+
+
+
 const val CREATE_FILE = 1
 
 
@@ -62,12 +84,14 @@ class MainActivity : AppCompatActivity(), LocationListener, SensorEventListener 
                             l.toByteArray()
                         )
                 }
+
             }
         } catch (e: FileNotFoundException) {
             e.printStackTrace()
         } catch (e: IOException) {
             e.printStackTrace()
         }
+
     }
 
 
@@ -83,6 +107,11 @@ class MainActivity : AppCompatActivity(), LocationListener, SensorEventListener 
 
                 alterDocument(uri)
                 // Perform operations on the document using its URI.
+                val fileContents = ""
+                openFileOutput("myfile", Context.MODE_PRIVATE).use {
+                    it.write(fileContents.toByteArray())
+                }
+
             }
         }
     }
@@ -179,10 +208,6 @@ class MainActivity : AppCompatActivity(), LocationListener, SensorEventListener 
 
                 createFile(MediaStore.Files.getContentUri("external"))
 
-                val fileContents = ""
-                openFileOutput("myfile", Context.MODE_PRIVATE).use {
-                    it.write(fileContents.toByteArray())
-                }
 
 
 
@@ -264,8 +289,10 @@ class MainActivity : AppCompatActivity(), LocationListener, SensorEventListener 
         // Many sensors return 3 values, one for each axis.
         val lux = event.values[0]
         // Do something with this sensor value.
+        val meas = arrayOf (
+              arrayOf( "Value", lux.toString() ) )
 
-        val fileContents = "       " + lux.toString() + "\n"
+        val fileContents = formatData( android.os.Build.MODEL, System.currentTimeMillis(), "Pressure", meas)
         val filename = "myfile"
 
         openFileOutput(filename, Context.MODE_APPEND).use {
