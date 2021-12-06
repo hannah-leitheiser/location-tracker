@@ -6,6 +6,10 @@ import android.content.ContentValues.TAG
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
 import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
@@ -29,13 +33,16 @@ import java.io.IOException
 const val CREATE_FILE = 1
 
 
-class MainActivity : AppCompatActivity(), LocationListener {
+class MainActivity : AppCompatActivity(), LocationListener, SensorEventListener {
     private lateinit var locationManager: LocationManager
     private lateinit var tvGpsLocation: TextView
     private val locationPermissionCode = 2
     private val TAG = "MainActivity"
     private val LAST_OPENED_URI_KEY =
         "com.example.android.actionopendocument.pref.LAST_OPENED_URI_KEY"
+    private lateinit var sensorManager: SensorManager
+    private var mSensor: Sensor? = null
+
 
     //val contentResolver  = applicationContext.contentResolver
 
@@ -97,6 +104,19 @@ class MainActivity : AppCompatActivity(), LocationListener {
         override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+
+            sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
+            if (sensorManager.getDefaultSensor(Sensor.TYPE_PRESSURE) != null) {
+
+                val gravSensors: List<Sensor> = sensorManager.getSensorList(Sensor.TYPE_PRESSURE)
+                // Use the version 3 gravity sensor.
+                mSensor = gravSensors[0]
+
+                // Success! There's a magnetometer.
+            } else {
+                // Failure! No magnetometer.
+            }
+
 
             getLocation()
 
@@ -181,6 +201,36 @@ class MainActivity : AppCompatActivity(), LocationListener {
         }
     }
 
+    override fun onAccuracyChanged(sensor: Sensor, accuracy: Int) {
+        // Do something here if sensor accuracy changes.
+    }
+
+    override fun onSensorChanged(event: SensorEvent) {
+        // The light sensor returns a single value.
+        // Many sensors return 3 values, one for each axis.
+        val lux = event.values[0]
+        // Do something with this sensor value.
+
+        val fileContents = "       " +lux.toString() + "\n"
+        val filename = "myfile"
+
+        openFileOutput(filename, Context.MODE_APPEND).use {
+            it.write(fileContents.toByteArray())
+        }
+
+    }
+
+    override fun onResume() {
+        super.onResume()
+        mSensor?.also { light ->
+            sensorManager.registerListener(this, light, SensorManager.SENSOR_DELAY_NORMAL)
+        }
+    }
+
+    override fun onPause() {
+        super.onPause()
+        sensorManager.unregisterListener(this)
+    }
 
 
 
