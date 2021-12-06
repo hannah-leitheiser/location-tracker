@@ -1,10 +1,8 @@
 package com.example.locationtracker
 import android.Manifest
 import android.app.Activity
-import android.content.ContentResolver
+import android.content.*
 import android.content.ContentValues.TAG
-import android.content.Context
-import android.content.Intent
 import android.content.pm.PackageManager
 import android.hardware.Sensor
 import android.hardware.SensorEvent
@@ -14,7 +12,10 @@ import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
 import android.net.Uri
+import android.net.wifi.WifiManager
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.os.SystemClock
 import android.provider.DocumentsContract
 import android.provider.MediaStore
@@ -42,10 +43,9 @@ class MainActivity : AppCompatActivity(), LocationListener, SensorEventListener 
         "com.example.android.actionopendocument.pref.LAST_OPENED_URI_KEY"
     private lateinit var sensorManager: SensorManager
     private var mSensor: Sensor? = null
-
+    private lateinit var wifiManager: WifiManager
 
     //val contentResolver  = applicationContext.contentResolver
-
 
 
     fun alterDocument(uri: Uri) {
@@ -55,13 +55,12 @@ class MainActivity : AppCompatActivity(), LocationListener, SensorEventListener 
                     val theData = openFileInput("myfile").bufferedReader().lines()
 
 
-                    for( l in theData)
-                    it.write(
+                    for (l in theData)
+                        it.write(
 
 
-
-                        l.toByteArray()
-                    )
+                            l.toByteArray()
+                        )
                 }
             }
         } catch (e: FileNotFoundException) {
@@ -72,9 +71,9 @@ class MainActivity : AppCompatActivity(), LocationListener, SensorEventListener 
     }
 
 
-
     override fun onActivityResult(
-        requestCode: Int, resultCode: Int, resultData: Intent?) {
+        requestCode: Int, resultCode: Int, resultData: Intent?
+    ) {
         if (requestCode == CREATE_FILE
             && resultCode == Activity.RESULT_OK
         ) {
@@ -87,40 +86,81 @@ class MainActivity : AppCompatActivity(), LocationListener, SensorEventListener 
             }
         }
     }
-        private fun createFile(pickerInitialUri: Uri) {
-            val intent = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
-                addCategory(Intent.CATEGORY_OPENABLE)
-                type = "application/text"
-                putExtra(Intent.EXTRA_TITLE, "data.txt")
 
-                // Optionally, specify a URI for the directory that should be opened in
-                // the system file picker before your app creates the document.
-                putExtra(DocumentsContract.EXTRA_INITIAL_URI, pickerInitialUri)
-            }
-            startActivityForResult(intent, CREATE_FILE)
+    private fun createFile(pickerInitialUri: Uri) {
+        val intent = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
+            addCategory(Intent.CATEGORY_OPENABLE)
+            type = "application/text"
+            putExtra(Intent.EXTRA_TITLE, "data.txt")
+
+            // Optionally, specify a URI for the directory that should be opened in
+            // the system file picker before your app creates the document.
+            putExtra(DocumentsContract.EXTRA_INITIAL_URI, pickerInitialUri)
         }
+        startActivityForResult(intent, CREATE_FILE)
+    }
 
 
-        override fun onCreate(savedInstanceState: Bundle?) {
+    override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-            sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
-            if (sensorManager.getDefaultSensor(Sensor.TYPE_PRESSURE) != null) {
 
-                val gravSensors: List<Sensor> = sensorManager.getSensorList(Sensor.TYPE_PRESSURE)
-                // Use the version 3 gravity sensor.
-                mSensor = gravSensors[0]
+        val context : Context = applicationContext
 
-                // Success! There's a magnetometer.
-            } else {
-                // Failure! No magnetometer.
+        wifiManager = context.getSystemService(Context.WIFI_SERVICE) as WifiManager
+
+        val wifiScanReceiver = object : BroadcastReceiver() {
+
+            override fun onReceive(context: Context, intent: Intent) {
+                val success = intent.getBooleanExtra(WifiManager.EXTRA_RESULTS_UPDATED, false)
+                if (success) {
+                    scanSuccess()
+                } else {
+                    scanFailure()
+                }
             }
+        }
+
+        val intentFilter = IntentFilter()
+        intentFilter.addAction(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION)
+        context.registerReceiver(wifiScanReceiver, intentFilter)
+
+        val mainHandler = Handler(Looper.getMainLooper())
+
+        mainHandler.post(object : Runnable {
+            override fun run() {
+                var success = wifiManager.startScan()
+
+                if (success) {
+                // scan failure handling
+                    scanSuccess()
+                }
+
+                mainHandler.postDelayed(this, 2000)
+            }
+        })
+
+        //val success = wifiManager.startScan()
 
 
-            getLocation()
 
-        var button = findViewById<Button>( R.id.button)
+        sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
+        if (sensorManager.getDefaultSensor(Sensor.TYPE_PRESSURE) != null) {
+
+            val gravSensors: List<Sensor> = sensorManager.getSensorList(Sensor.TYPE_PRESSURE)
+            // Use the version 3 gravity sensor.
+            mSensor = gravSensors[0]
+
+            // Success! There's a magnetometer.
+        } else {
+            // Failure! No magnetometer.
+        }
+
+
+        getLocation()
+
+        var button = findViewById<Button>(R.id.button)
 
         button.setOnClickListener(object : View.OnClickListener {
             override fun onClick(v: View?) {
@@ -128,15 +168,16 @@ class MainActivity : AppCompatActivity(), LocationListener, SensorEventListener 
 
                 openFileInput("myfile").bufferedReader().useLines {
 
-                        var tt = findViewById<TextView>(R.id.info)
-                        var text=""
-                        for(item in it)
-                            text=text+item.toString()
+                    var tt = findViewById<TextView>(R.id.info)
+                    var text = ""
+                    for (item in it)
+                        text = text + item.toString()
 
-                      tt.text = text.toString()
+                    tt.text = text.toString()
 
-                    }
+                }
 
+                createFile(MediaStore.Files.getContentUri("external"))
 
                 val fileContents = ""
                 openFileOutput("myfile", Context.MODE_PRIVATE).use {
@@ -152,35 +193,44 @@ class MainActivity : AppCompatActivity(), LocationListener, SensorEventListener 
 
 
 
-                createFile(MediaStore.Files.getContentUri("external"))
 
             }
 
-            }
+        }
         )
 
     }
+
     private fun getLocation() {
         locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
-        if ((ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED)) {
-            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), locationPermissionCode)
+        if ((ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.ACCESS_FINE_LOCATION
+            ) != PackageManager.PERMISSION_GRANTED)
+        ) {
+            ActivityCompat.requestPermissions(
+                this,
+                arrayOf(Manifest.permission.ACCESS_FINE_LOCATION),
+                locationPermissionCode
+            )
         }
         locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0, 0f, this)
         locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0f, this)
         locationManager.requestLocationUpdates(LocationManager.FUSED_PROVIDER, 0, 0f, this)
 
     }
+
     override fun onLocationChanged(location: Location) {
 
         val loc = location.elapsedRealtimeNanos / 1000000L
         val tsLong = System.currentTimeMillis()
         val bootTime = tsLong - (SystemClock.elapsedRealtimeNanos() / 1000000L)
         val timeStamps = (loc + bootTime)
-        val delta = (location.elapsedRealtimeNanos / 1000L) - (SystemClock.elapsedRealtimeNanos() / 1000L)
+        val delta =
+            (location.elapsedRealtimeNanos / 1000L) - (SystemClock.elapsedRealtimeNanos() / 1000L)
 
-        val fileContents = "       " +(timeStamps/1000L).toString() + "\n"
+        val fileContents = "       " + (timeStamps / 1000L).toString() + "\n"
         val filename = "myfile"
-
 
 
         val ts = tsLong.toString()
@@ -190,12 +240,16 @@ class MainActivity : AppCompatActivity(), LocationListener, SensorEventListener 
 
 
     }
-    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
         if (requestCode == locationPermissionCode) {
             if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                 Toast.makeText(this, "Permission Granted", Toast.LENGTH_SHORT).show()
-            }
-            else {
+            } else {
                 Toast.makeText(this, "Permission Denied", Toast.LENGTH_SHORT).show()
             }
         }
@@ -211,7 +265,7 @@ class MainActivity : AppCompatActivity(), LocationListener, SensorEventListener 
         val lux = event.values[0]
         // Do something with this sensor value.
 
-        val fileContents = "       " +lux.toString() + "\n"
+        val fileContents = "       " + lux.toString() + "\n"
         val filename = "myfile"
 
         openFileOutput(filename, Context.MODE_APPEND).use {
@@ -233,5 +287,24 @@ class MainActivity : AppCompatActivity(), LocationListener, SensorEventListener 
     }
 
 
+    private fun scanSuccess() {
+        val results = wifiManager.scanResults
+
+        val fileContents = results.toString() + "\n"
+        val filename = "myfile"
+
+         openFileOutput(filename, Context.MODE_APPEND).use {
+            it.write(fileContents.toByteArray())
+        }
+
+
+
+    }
+
+    private fun scanFailure() {
+        // handle failure: new scan did NOT succeed
+        // consider using old scan results: these are the OLD results!
+        // val results = wifiManager.scanResults
+    }
 
 }
