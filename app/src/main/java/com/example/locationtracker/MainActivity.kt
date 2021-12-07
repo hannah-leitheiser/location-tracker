@@ -31,25 +31,33 @@ import java.io.FileNotFoundException
 import java.io.FileOutputStream
 import java.io.IOException
 
-fun formatData( phoneName : String, timeStamp : Long, measurementType : String, propertyArray : Array<Array<String>>): String {
-    var outputJSON = "{ \"source\"            : \"" + phoneName + "\",\n" +
-                     "  \"timestamp\"         : \"" + timeStamp.toString() + "\",\n"
+fun formatJSONData( phoneName : String, timeStampms : Long, measurementType : String, propertyArray : Array<Array<Array<String>>>): String {
+    var outputJSON = "*".repeat(32) + "\n" +
+                     "{ \"source\"            : \"" + phoneName + "\",\n" +
+                     "  \"timestamp\"         : \"" + timeStampms.toString() + "\",\n" +
                      "  \"measurement_type\"  : \"" + measurementType + "\",\n"
 
     outputJSON = outputJSON +
                      "  \"data\"              : [ \n"
-    for(i in 0..propertyArray.size-1 ) {
 
-        outputJSON =
-            outputJSON + "     \"" + propertyArray[i][0] + "\" : \"" + propertyArray[i][1] + "\""
-        if (i < propertyArray.size-1)
-            outputJSON = outputJSON + ",\n"
-        else
-            outputJSON = outputJSON + " ] \n"
+    for(ii in 0..propertyArray.size-1) {
+        outputJSON = outputJSON + "  {\n"
+        for (i in 0..propertyArray[ii].size - 1) {
+
+            outputJSON =
+                outputJSON + "     \"" + propertyArray[ii][i][0] + "\" : \"" + propertyArray[ii][i][1] + "\""
+            if (i < propertyArray[ii].size - 1)
+                outputJSON = outputJSON + ",\n"
+            else
+                outputJSON = outputJSON + " ] \n"
+        }
+        outputJSON = outputJSON + "}\n\n"
+
     }
-    outputJSON = outputJSON + "}\n\n"
+    outputJSON = outputJSON + "]\n}\n"
     return outputJSON
 }
+
 
 
 
@@ -73,16 +81,12 @@ class MainActivity : AppCompatActivity(), LocationListener, SensorEventListener 
     fun alterDocument(uri: Uri) {
         try {
             contentResolver.openFileDescriptor(uri, "w")?.use {
+
+
                 FileOutputStream(it.fileDescriptor).use {
-                    val theData = openFileInput("myfile").bufferedReader().lines()
+                    val theData = openFileInput("myfile")
+                    theData.copyTo(it)
 
-
-                    for (l in theData)
-                        it.write(
-
-
-                            l.toByteArray()
-                        )
                 }
 
             }
@@ -247,6 +251,21 @@ class MainActivity : AppCompatActivity(), LocationListener, SensorEventListener 
 
     override fun onLocationChanged(location: Location) {
 
+
+        val data = arrayOf(
+            arrayOf (
+                arrayOf( "latitude" ,           location.latitude.toString()),
+                arrayOf( "longitude",           location.longitude.toString()),
+                arrayOf( "altitude",            location.altitude.toString()),
+                arrayOf( "speed",               location.speed.toString()),
+                arrayOf( "bearing",             location.bearing.toString()),
+                arrayOf( "accuracy, position",  location.accuracy.toString()),
+                arrayOf( "accuracy, vertical",  location.verticalAccuracyMeters.toString()),
+                arrayOf( "accuracy, speed",     location.speedAccuracyMetersPerSecond.toString()),
+                arrayOf( "accuracy, bearing",   location.bearingAccuracyDegrees.toString()),
+                //arrayOf( "extras",              location.extras.toString())
+                ))
+
         val loc = location.elapsedRealtimeNanos / 1000000L
         val tsLong = System.currentTimeMillis()
         val bootTime = tsLong - (SystemClock.elapsedRealtimeNanos() / 1000000L)
@@ -254,11 +273,10 @@ class MainActivity : AppCompatActivity(), LocationListener, SensorEventListener 
         val delta =
             (location.elapsedRealtimeNanos / 1000L) - (SystemClock.elapsedRealtimeNanos() / 1000L)
 
-        val fileContents = "       " + (timeStamps / 1000L).toString() + "\n"
+        val fileContents = formatJSONData( android.os.Build.MODEL, timeStamps, "location - " + location.provider.toString(), data)
+
         val filename = "myfile"
 
-
-        val ts = tsLong.toString()
         openFileOutput(filename, Context.MODE_APPEND).use {
             it.write(fileContents.toByteArray())
         }
@@ -290,9 +308,10 @@ class MainActivity : AppCompatActivity(), LocationListener, SensorEventListener 
         val lux = event.values[0]
         // Do something with this sensor value.
         val meas = arrayOf (
-              arrayOf( "Value", lux.toString() ) )
+                    arrayOf (
+                        arrayOf( "Value", lux.toString() ) ) )
 
-        val fileContents = formatData( android.os.Build.MODEL, System.currentTimeMillis(), "Pressure", meas)
+        val fileContents = formatJSONData( android.os.Build.MODEL, System.currentTimeMillis(), "pressure", meas)
         val filename = "myfile"
 
         openFileOutput(filename, Context.MODE_APPEND).use {
@@ -315,12 +334,34 @@ class MainActivity : AppCompatActivity(), LocationListener, SensorEventListener 
 
 
     private fun scanSuccess() {
-        val results = wifiManager.scanResults
 
-        val fileContents = results.toString() + "\n"
+        val tsLong = System.currentTimeMillis()
+
+        val bootTime = tsLong - (SystemClock.elapsedRealtimeNanos() / 1000000L)
+        var earliestTimestamp = -1L
+        val results = wifiManager.scanResults
+        var dataPayloadMutable : MutableList<Array<Array<String>>> =
+             mutableListOf <Array<Array<String>>>( )
+        for(i in 0..results.size) {
+            val wifiTimestamp = (results[0].timestamp + bootTime)
+            if ( (earliestTimestamp == -1L) || (wifiTimestamp < earliestTimestamp) )
+                earliestTimestamp = wifiTimestamp
+            dataPayloadMutable.add(
+                arrayOf(
+                    arrayOf("BSSID", results[0].BSSID.toString()),
+                    arrayOf("SSID", results[0].SSID.toString()),
+                    arrayOf("level", results[0].level.toString()),
+                    arrayOf("frequency", results[0].frequency.toString()),
+                    arrayOf("timestamp", wifiTimestamp.toString())
+                )
+            )
+        }
+
+        val fileContents = formatJSONData( android.os.Build.MODEL, earliestTimestamp, "wifi scan", dataPayloadMutable.toTypedArray() )
+
         val filename = "myfile"
 
-         openFileOutput(filename, Context.MODE_APPEND).use {
+        openFileOutput(filename, Context.MODE_APPEND).use {
             it.write(fileContents.toByteArray())
         }
 
