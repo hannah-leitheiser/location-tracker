@@ -14,10 +14,6 @@ import android.location.LocationListener
 import android.location.LocationManager
 import android.net.Uri
 import android.net.wifi.WifiManager
-import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
-import android.os.SystemClock
 import android.provider.DocumentsContract
 import android.provider.MediaStore
 import android.view.View
@@ -33,7 +29,15 @@ import java.io.FileOutputStream
 import java.io.IOException
 import android.location.GpsSatellite
 import android.R.string.no
+import android.os.*
 import android.telephony.*
+import java.util.concurrent.locks.Lock
+import android.os.PowerManager
+
+import android.R.string.no
+
+
+
 
 fun formatJSONData( phoneName : String, timeStampms : Long, measurementType : String, propertyArray : Array<Array<Array<String>>>): String {
     var outputJSON = "*".repeat(32) + "\n" +
@@ -48,8 +52,7 @@ fun formatJSONData( phoneName : String, timeStampms : Long, measurementType : St
         outputJSON = outputJSON + "  {\n"
         for (i in 0..propertyArray[ii].size - 1) {
 
-            if (propertyArray[ii][i][1] != "" && propertyArray[ii][i][1] != "{}" && propertyArray[ii][i][1] != "UNAVALIABLE" && propertyArray[ii][i][1] != "null"
-                && propertyArray[ii][i][1] != "NONE/UNKNOWN") {
+            if (propertyArray[ii][i][1] != "" && propertyArray[ii][i][1] != "{}" && propertyArray[ii][i][1] != "UNAVALIABLE" && propertyArray[ii][i][1] != "null") {
                 outputJSON =
                     outputJSON + "     \"" + propertyArray[ii][i][0] + "\" : \"" + propertyArray[ii][i][1] + "\",\n"
             }
@@ -109,6 +112,7 @@ class MainActivity : AppCompatActivity(), LocationListener, SensorEventListener 
     private lateinit var wifiManager: WifiManager
     private var gnss : GnssStatus? = null
     private lateinit var telephony : TelephonyManager
+    private lateinit var wakeLock: PowerManager.WakeLock
 
     //val contentResolver  = applicationContext.contentResolver
 
@@ -173,6 +177,8 @@ class MainActivity : AppCompatActivity(), LocationListener, SensorEventListener 
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        val powerManager = getSystemService(POWER_SERVICE) as PowerManager
+        wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "LocationTracker:wakelock")
 
         telephony = getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
 
