@@ -2,15 +2,12 @@ package com.example.locationtracker
 import android.Manifest
 import android.app.Activity
 import android.content.*
-import android.content.ContentValues.TAG
 import android.content.pm.PackageManager
 import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.location.GnssStatus
-import android.location.Location
-import android.location.LocationListener
 import android.location.LocationManager
 import android.net.Uri
 import android.net.wifi.WifiManager
@@ -23,53 +20,12 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import androidx.core.net.toUri
 import java.io.FileNotFoundException
 import java.io.FileOutputStream
 import java.io.IOException
-import android.location.GpsSatellite
-import android.R.string.no
 import android.os.*
 import android.telephony.*
-import java.util.concurrent.locks.Lock
 import android.os.PowerManager
-
-import android.R.string.no
-import android.provider.OpenableColumns
-import com.google.android.gms.location.FusedLocationProviderClient
-import java.io.File
-
-
-
-fun formatJSONData( phoneName : String, timeStampms : Long, measurementType : String, propertyArray : Array<Array<Array<String>>>): String {
-    var outputJSON = "*".repeat(32) + "\n" +
-                     "{ \"source\"            : \"" + phoneName + "\",\n" +
-                     "  \"timestamp\"         : \"" + timeStampms.toString() + "\",\n" +
-                     "  \"measurement_type\"  : \"" + measurementType + "\",\n"
-
-    outputJSON = outputJSON +
-                     "  \"data\"              : [ \n"
-
-    for(ii in 0..propertyArray.size-1) {
-        outputJSON = outputJSON + "  {\n"
-        for (i in 0..propertyArray[ii].size - 1) {
-
-            if (propertyArray[ii][i][1] != "" && propertyArray[ii][i][1] != "{}" && propertyArray[ii][i][1] != "UNAVALIABLE" && propertyArray[ii][i][1] != "null") {
-                outputJSON =
-                    outputJSON + "     \"" + propertyArray[ii][i][0] + "\" : \"" + propertyArray[ii][i][1] + "\",\n"
-            }
-        }
-        if( outputJSON.substring( outputJSON.length-2)  == ",\n" )
-            outputJSON = outputJSON.substring( 0, outputJSON.length-2) + "\n"
-        if( ii < propertyArray.size - 1)
-                outputJSON = outputJSON + "  }, \n"
-        else
-                outputJSON = outputJSON + "  }\n"
-
-    }
-    outputJSON = outputJSON + " ]\n}\n"
-    return outputJSON
-}
 
 fun formatResult(result : Int, specialValues : Array<Int>, specials : Array<String>) : String {
     for(i in 0..specials.size-1) {
@@ -101,8 +57,9 @@ fun printIntArray( a : IntArray ) : String {
 
 const val CREATE_FILE = 1
 
-
-class MainActivity : AppCompatActivity(), LocationListener, SensorEventListener {
+class MainActivity : AppCompatActivity(), SensorEventListener {
+    private val saveFile = LocalJSONFileManager(this, "myfile")
+    private val locListen  = MyLocationListener(saveFile)
     private lateinit var locationManager: LocationManager
     private lateinit var tvGpsLocation: TextView
     private val locationPermissionCode = 2
@@ -112,7 +69,6 @@ class MainActivity : AppCompatActivity(), LocationListener, SensorEventListener 
     private lateinit var sensorManager: SensorManager
     private var mSensor: Sensor? = null
     private lateinit var wifiManager: WifiManager
-    private var gnss : GnssStatus? = null
     private lateinit var telephony : TelephonyManager
     private lateinit var wakeLock: PowerManager.WakeLock
     var GPSFixes = 0
@@ -121,6 +77,10 @@ class MainActivity : AppCompatActivity(), LocationListener, SensorEventListener 
     var CellScan = 0
     var FusedFixes = 0
     var WIFIScan = 0
+    var Satellites = 0
+    var Networks = 0
+    var Towers = 0
+    var Seconds = 0
 
 
     //val contentResolver  = applicationContext.contentResolver
@@ -188,6 +148,7 @@ class MainActivity : AppCompatActivity(), LocationListener, SensorEventListener 
 
         val powerManager = getSystemService(POWER_SERVICE) as PowerManager
         wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "LocationTracker:wakelock")
+        wakeLock.acquire()
 
         telephony = getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
 
@@ -218,6 +179,18 @@ class MainActivity : AppCompatActivity(), LocationListener, SensorEventListener 
 
         mainHandler.post(object : Runnable {
             override fun run() {
+
+                if( !wakeLock.isHeld() ) {
+                    wakeLock.acquire()
+                    findViewById<TextView>(R.id.textStatus).text = "Attempting to Aquire Wake Lock"
+
+                }
+                if(wakeLock.isHeld()) {
+                    findViewById<TextView>(R.id.textStatus).text = "Wake Lock Held"
+                }
+
+                Seconds = Seconds + 2
+
                 var success = wifiManager.startScan()
 
                 if (success) {
@@ -228,12 +201,22 @@ class MainActivity : AppCompatActivity(), LocationListener, SensorEventListener 
 
 
                     findViewById<TextView>(R.id.info).text =
-                                "GPSFixes   : " + GPSFixes.toString() + "\n" +
-                                "NETFixes   : " + NETFixes.toString() + "\n" +
-                                "Pressure   : " + Pressure.toString() + "\n" +
-                                "CellScan   : " + CellScan.toString() + "\n" +
-                                "Fused Fixes: " + FusedFixes.toString() + "\n" +
-                                "Wifi Scan  : " + WIFIScan.toString() + "\n"
+                                "-------------------------------------------\n" +
+                                "              Stored Data                       \n\n" +
+                                "GPSFixes    : " + locListen.GPSFixCount.toString() + "\n" +
+                                "NETFixes    : " + locListen.NETFixCount.toString() + "\n" +
+                                "Fused Fixes : " + locListen.FusedFixCount.toString() + "\n" +
+                                "Wifi Scan   : " + WIFIScan.toString() + "\n" +
+                                "CellScan    : " + CellScan.toString() + "\n" +
+                                "Pressure    : " + Pressure.toString() + "\n\n" +
+                                "-------------------------------------------\n" +
+                                "                Current Status                   \n\n" +
+                                "Networks    : " + Networks.toString() + "\n" +
+                                "GPS Sats    : " + locListen.satellitesUsed.toString() + "\n" +
+                                "Cell Towers : " + Towers.toString() + "\n" +
+                                "Seconds     : " + Seconds.toString()
+
+
 
 
 
@@ -294,7 +277,7 @@ class MainActivity : AppCompatActivity(), LocationListener, SensorEventListener 
     }
 
     private fun getLocation() {
-        locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
+        locationManager = this.getSystemService(Context.LOCATION_SERVICE) as LocationManager
         if ((ContextCompat.checkSelfPermission(
                 this,
                 Manifest.permission.ACCESS_FINE_LOCATION
@@ -306,22 +289,23 @@ class MainActivity : AppCompatActivity(), LocationListener, SensorEventListener 
                 locationPermissionCode
             )
         }
-        locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0, 0f, this)
-        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0f, this)
-        locationManager.requestLocationUpdates(LocationManager.FUSED_PROVIDER, 0, 0f, this)
-        locationManager.registerGnssStatusCallback ( object : GnssStatus.Callback() {
-
-
-            override fun onSatelliteStatusChanged( s : GnssStatus)
-            {
-                gnss = s
-                var dataPayloadMutable : MutableList<Array<Array<String>>> =
+        locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0, 0f, locListen)
+        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0f, locListen)
+        locationManager.requestLocationUpdates(LocationManager.FUSED_PROVIDER, 0, 0f, locListen)
+        locationManager.registerGnssStatusCallback ( object : GnssStatus.Callback()
+        {
+            override fun onSatelliteStatusChanged(s: GnssStatus) {
+                locListen.gnss = s
+            }
+        } )
+             /*   var dataPayloadMutable : MutableList<Array<Array<String>>> =
                     mutableListOf <Array<Array<String>>>( )
 
                 var cells = telephony.allCellInfo
                 val tsLong = System.currentTimeMillis()
                 val bootTime = tsLong - (SystemClock.elapsedRealtimeNanos() / 1000000L)
                 var earliestTimestamp = System.currentTimeMillis()
+                Towers = cells.size
                 for(tower in cells) {
                     val towerTimestamp = ((tower.timestampMillis / 1L) + bootTime)
                     if (  (towerTimestamp < earliestTimestamp) )
@@ -491,94 +475,11 @@ class MainActivity : AppCompatActivity(), LocationListener, SensorEventListener 
 
 
             }
+*/
+        //} )
 
-        } )
+    //}
 
-    }
-
-    override fun onLocationChanged(location: Location) {
-
-        var satsTotal = 0
-        var satsUsed = 0
-        var data = arrayOf( arrayOf( arrayOf( "", "" )))
-        if (location.provider == "gps" && gnss != null) {
-            for (sat in 0..gnss!!.satelliteCount-1) {
-                satsTotal++
-                if (gnss!!.usedInFix(sat)) satsUsed++
-                //if (sat.getSnr() != NO_DATA) satsInView++;
-            }
-            data = arrayOf(
-                arrayOf(
-                    arrayOf("latitude", location.latitude.toString()),
-                    arrayOf("longitude", location.longitude.toString()),
-                    arrayOf("altitude", location.altitude.toString()),
-                    arrayOf("speed", location.speed.toString()),
-                    arrayOf("bearing", location.bearing.toString()),
-                    arrayOf("accuracy, position", location.accuracy.toString()),
-                    arrayOf("accuracy, vertical", location.verticalAccuracyMeters.toString()),
-                    arrayOf("accuracy, speed", location.speedAccuracyMetersPerSecond.toString()),
-                    arrayOf("accuracy, bearing", location.bearingAccuracyDegrees.toString()),
-                    arrayOf("satellites, total", satsTotal.toString()),
-                    arrayOf("satellites, used", satsUsed.toString())
-                )
-            )
-
-        } else {
-            data = arrayOf(
-                arrayOf(
-                    arrayOf("latitude", location.latitude.toString()),
-                    arrayOf("longitude", location.longitude.toString()),
-                    arrayOf("altitude", location.altitude.toString()),
-                    arrayOf("speed", location.speed.toString()),
-                    arrayOf("bearing", location.bearing.toString()),
-                    arrayOf("accuracy, position", location.accuracy.toString()),
-                    arrayOf("accuracy, vertical", location.verticalAccuracyMeters.toString()),
-                    arrayOf("accuracy, speed", location.speedAccuracyMetersPerSecond.toString()),
-                    arrayOf("accuracy, bearing", location.bearingAccuracyDegrees.toString()),
-                )
-            )
-
-        }
-
-
-        val loc = location.elapsedRealtimeNanos / 1000000L
-        val tsLong = System.currentTimeMillis()
-        val bootTime = tsLong - (SystemClock.elapsedRealtimeNanos() / 1000000L)
-        val timeStamps = (loc + bootTime)
-        val delta =
-            (location.elapsedRealtimeNanos / 1000L) - (SystemClock.elapsedRealtimeNanos() / 1000L)
-
-        val fileContents = formatJSONData( android.os.Build.MODEL, timeStamps, "location - " + location.provider.toString(), data)
-
-        val filename = "myfile"
-
-        if( location.provider == "gps") GPSFixes = GPSFixes + 1
-        if( location.provider == "network") NETFixes = NETFixes + 1
-        if( location.provider == "fused") FusedFixes = FusedFixes + 1
-        openFileOutput(filename, Context.MODE_APPEND).use {
-            it.write(fileContents.toByteArray())
-            if (ActivityCompat.checkSelfPermission(
-                    this,
-                    Manifest.permission.ACCESS_FINE_LOCATION
-                ) != PackageManager.PERMISSION_GRANTED
-            ) {
-                // TODO: Consider calling
-                //    ActivityCompat#requestPermissions
-                // here to request the missing permissions, and then overriding
-                //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
-                //                                          int[] grantResults)
-                // to handle the case where the user grants the permission. See the documentation
-                // for ActivityCompat#requestPermissions for more details.
-                return
-            }
-            /*if (gnss == null) {
-            } else {
-                for (t in 0..gnss!!.satelliteCount-1) {
-                    val text = gnss!!.getCarrierFrequencyHz(t).toString() + "  |  "
-                    it.write(text.toByteArray())
-                }
-            }*/
-        }
 
 
 
@@ -611,12 +512,12 @@ class MainActivity : AppCompatActivity(), LocationListener, SensorEventListener 
                     arrayOf (
                         arrayOf( "Value", lux.toString() ) ) )
 
-        val fileContents = formatJSONData( android.os.Build.MODEL, System.currentTimeMillis(), "pressure", meas)
-        val filename = "myfile"
+        //val fileContents = formatJSONData( android.os.Build.MODEL, System.currentTimeMillis(), "pressure", meas)
+        //val filename = "myfile"
 
-        openFileOutput(filename, Context.MODE_APPEND).use {
-            it.write(fileContents.toByteArray())
-        }
+        //openFileOutput(filename, Context.MODE_APPEND).use {
+        //    it.write(fileContents.toByteArray())
+        //}
         Pressure = Pressure + 1
 
     }
@@ -624,7 +525,7 @@ class MainActivity : AppCompatActivity(), LocationListener, SensorEventListener 
     override fun onResume() {
         super.onResume()
         mSensor?.also { light ->
-            sensorManager.registerListener(this, light, SensorManager.SENSOR_DELAY_NORMAL)
+            sensorManager.registerListener(this, light, 1000000)
         }
     }
 
@@ -642,6 +543,7 @@ class MainActivity : AppCompatActivity(), LocationListener, SensorEventListener 
         val results = wifiManager.scanResults
         var dataPayloadMutable : MutableList<Array<Array<String>>> =
              mutableListOf <Array<Array<String>>>( )
+        Networks = results.size
         for(i in 0..results.size-1) {
             val wifiTimestamp = ((results[0].timestamp / 1000L) + bootTime)
             if (  (wifiTimestamp < earliestTimestamp) )
@@ -657,13 +559,13 @@ class MainActivity : AppCompatActivity(), LocationListener, SensorEventListener 
             )
         }
 
-        val fileContents = formatJSONData( android.os.Build.MODEL, earliestTimestamp, "wifi scan", dataPayloadMutable.toTypedArray() )
+        //val fileContents = formatJSONData( android.os.Build.MODEL, earliestTimestamp, "wifi scan", dataPayloadMutable.toTypedArray() )
 
-        val filename = "myfile"
+        //val filename = "myfile"
 
-        openFileOutput(filename, Context.MODE_APPEND).use {
-            it.write(fileContents.toByteArray())
-        }
+        //openFileOutput(filename, Context.MODE_APPEND).use {
+        //    it.write(fileContents.toByteArray())
+        //}
         WIFIScan = WIFIScan + 1
 
 
