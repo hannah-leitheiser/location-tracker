@@ -35,7 +35,9 @@ import java.util.concurrent.locks.Lock
 import android.os.PowerManager
 
 import android.R.string.no
-
+import android.provider.OpenableColumns
+import com.google.android.gms.location.FusedLocationProviderClient
+import java.io.File
 
 
 
@@ -113,6 +115,13 @@ class MainActivity : AppCompatActivity(), LocationListener, SensorEventListener 
     private var gnss : GnssStatus? = null
     private lateinit var telephony : TelephonyManager
     private lateinit var wakeLock: PowerManager.WakeLock
+    var GPSFixes = 0
+    var NETFixes = 0
+    var Pressure = 0
+    var CellScan = 0
+    var FusedFixes = 0
+    var WIFIScan = 0
+
 
     //val contentResolver  = applicationContext.contentResolver
 
@@ -216,6 +225,18 @@ class MainActivity : AppCompatActivity(), LocationListener, SensorEventListener 
                     scanSuccess()
                 }
 
+
+
+                    findViewById<TextView>(R.id.info).text =
+                                "GPSFixes   : " + GPSFixes.toString() + "\n" +
+                                "NETFixes   : " + NETFixes.toString() + "\n" +
+                                "Pressure   : " + Pressure.toString() + "\n" +
+                                "CellScan   : " + CellScan.toString() + "\n" +
+                                "Fused Fixes: " + FusedFixes.toString() + "\n" +
+                                "Wifi Scan  : " + WIFIScan.toString() + "\n"
+
+
+
                 mainHandler.postDelayed(this, 2000)
             }
         })
@@ -245,19 +266,15 @@ class MainActivity : AppCompatActivity(), LocationListener, SensorEventListener 
             override fun onClick(v: View?) {
                 //your implementation goes here
 
-                openFileInput("myfile").bufferedReader().useLines {
-
-                    var tt = findViewById<TextView>(R.id.info)
-                    var text = ""
-                    for (item in it)
-                        text = text + item.toString()
-
-                    tt.text = text.toString()
-
-                }
 
                 createFile(MediaStore.Files.getContentUri("external"))
 
+                GPSFixes = 0
+                NETFixes = 0
+                Pressure = 0
+                CellScan = 0
+                FusedFixes = 0
+                WIFIScan = 0
 
 
 
@@ -466,7 +483,7 @@ class MainActivity : AppCompatActivity(), LocationListener, SensorEventListener 
                 val fileContents = formatJSONData( android.os.Build.MODEL, earliestTimestamp, "cell scan", dataPayloadMutable.toTypedArray() )
 
                 val filename = "myfile"
-
+                CellScan = CellScan + 1
                 openFileOutput(filename, Context.MODE_APPEND).use {
                     it.write(fileContents.toByteArray())
                 }
@@ -535,6 +552,9 @@ class MainActivity : AppCompatActivity(), LocationListener, SensorEventListener 
 
         val filename = "myfile"
 
+        if( location.provider == "gps") GPSFixes = GPSFixes + 1
+        if( location.provider == "network") NETFixes = NETFixes + 1
+        if( location.provider == "fused") FusedFixes = FusedFixes + 1
         openFileOutput(filename, Context.MODE_APPEND).use {
             it.write(fileContents.toByteArray())
             if (ActivityCompat.checkSelfPermission(
@@ -597,6 +617,7 @@ class MainActivity : AppCompatActivity(), LocationListener, SensorEventListener 
         openFileOutput(filename, Context.MODE_APPEND).use {
             it.write(fileContents.toByteArray())
         }
+        Pressure = Pressure + 1
 
     }
 
@@ -643,6 +664,7 @@ class MainActivity : AppCompatActivity(), LocationListener, SensorEventListener 
         openFileOutput(filename, Context.MODE_APPEND).use {
             it.write(fileContents.toByteArray())
         }
+        WIFIScan = WIFIScan + 1
 
 
 
