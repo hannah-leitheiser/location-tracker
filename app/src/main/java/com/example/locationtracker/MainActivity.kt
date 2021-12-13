@@ -27,6 +27,13 @@ import android.os.*
 import android.telephony.*
 import android.os.PowerManager
 
+lateinit var saveFile : LocalJSONFileManager
+var satellitesUsed = 0
+var GPSFixCount = 0
+var NETFixCount = 0
+var FusedFixCount = 0
+
+
 fun formatResult(result : Int, specialValues : Array<Int>, specials : Array<String>) : String {
     for(i in 0..specials.size-1) {
         if(result == specialValues[i])
@@ -58,8 +65,7 @@ fun printIntArray( a : IntArray ) : String {
 const val CREATE_FILE = 1
 
 class MainActivity : AppCompatActivity(), SensorEventListener {
-    private val saveFile = LocalJSONFileManager(this, "myfile")
-    private val locListen  = MyLocationListener(saveFile)
+    private val locListen  = MyLocationListener()
     private lateinit var locationManager: LocationManager
     private lateinit var tvGpsLocation: TextView
     private val locationPermissionCode = 2
@@ -70,7 +76,7 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
     private var mSensor: Sensor? = null
     private lateinit var wifiManager: WifiManager
     private lateinit var telephony : TelephonyManager
-    private lateinit var wakeLock: PowerManager.WakeLock
+    //private lateinit var wakeLock: PowerManager.WakeLock
     var GPSFixes = 0
     var NETFixes = 0
     var Pressure = 0
@@ -146,9 +152,12 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        val powerManager = getSystemService(POWER_SERVICE) as PowerManager
-        wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "LocationTracker:wakelock")
-        wakeLock.acquire()
+
+        saveFile = LocalJSONFileManager(this, "myfile")
+
+        //val powerManager = getSystemService(POWER_SERVICE) as PowerManager
+        //wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "LocationTracker:wakelock")
+        //wakeLock.acquire()
 
         telephony = getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
 
@@ -180,14 +189,14 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
         mainHandler.post(object : Runnable {
             override fun run() {
 
-                if( !wakeLock.isHeld() ) {
+                /*if( !wakeLock.isHeld() ) {
                     wakeLock.acquire()
                     findViewById<TextView>(R.id.textStatus).text = "Attempting to Aquire Wake Lock"
 
                 }
                 if(wakeLock.isHeld()) {
                     findViewById<TextView>(R.id.textStatus).text = "Wake Lock Held"
-                }
+                }*/
 
                 Seconds = Seconds + 2
 
@@ -203,16 +212,16 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
                     findViewById<TextView>(R.id.info).text =
                                 "-------------------------------------------\n" +
                                 "              Stored Data                       \n\n" +
-                                "GPSFixes    : " + locListen.GPSFixCount.toString() + "\n" +
-                                "NETFixes    : " + locListen.NETFixCount.toString() + "\n" +
-                                "Fused Fixes : " + locListen.FusedFixCount.toString() + "\n" +
+                                "GPSFixes    : " + GPSFixCount.toString() + "\n" +
+                                "NETFixes    : " + NETFixCount.toString() + "\n" +
+                                "Fused Fixes : " + FusedFixCount.toString() + "\n" +
                                 "Wifi Scan   : " + WIFIScan.toString() + "\n" +
                                 "CellScan    : " + CellScan.toString() + "\n" +
                                 "Pressure    : " + Pressure.toString() + "\n\n" +
                                 "-------------------------------------------\n" +
                                 "                Current Status                   \n\n" +
                                 "Networks    : " + Networks.toString() + "\n" +
-                                "GPS Sats    : " + locListen.satellitesUsed.toString() + "\n" +
+                                "GPS Sats    : " + satellitesUsed.toString() + "\n" +
                                 "Cell Towers : " + Towers.toString() + "\n" +
                                 "Seconds     : " + Seconds.toString()
 
@@ -277,27 +286,13 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
     }
 
     private fun getLocation() {
-        locationManager = this.getSystemService(Context.LOCATION_SERVICE) as LocationManager
-        if ((ContextCompat.checkSelfPermission(
-                this,
-                Manifest.permission.ACCESS_FINE_LOCATION
-            ) != PackageManager.PERMISSION_GRANTED)
-        ) {
-            ActivityCompat.requestPermissions(
-                this,
-                arrayOf(Manifest.permission.ACCESS_FINE_LOCATION),
-                locationPermissionCode
-            )
+        Intent(this, MyLocationListener::class.java).also { intent ->
+            startService(intent)
         }
-        locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0, 0f, locListen)
-        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0f, locListen)
-        locationManager.requestLocationUpdates(LocationManager.FUSED_PROVIDER, 0, 0f, locListen)
-        locationManager.registerGnssStatusCallback ( object : GnssStatus.Callback()
-        {
-            override fun onSatelliteStatusChanged(s: GnssStatus) {
-                locListen.gnss = s
-            }
-        } )
+
+    }
+
+
              /*   var dataPayloadMutable : MutableList<Array<Array<String>>> =
                     mutableListOf <Array<Array<String>>>( )
 
@@ -483,7 +478,7 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
 
 
 
-    }
+
 
     override fun onRequestPermissionsResult(
         requestCode: Int,

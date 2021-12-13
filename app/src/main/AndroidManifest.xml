@@ -8,6 +8,7 @@
     <uses-permission android:name="android.permission.HIGH_SAMPLING_RATE_SENSORS" />
     <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
 
     <application
@@ -18,9 +19,11 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.LocationTracker">
         <service
-            android:name=".GPSListener"
+            android:name=".MyLocationListener"
             android:enabled="true"
-            android:exported="true"></service>
+            android:exported="true"
+            android:foregroundServiceType="location">
+        </service>
 
         <activity
             android:name=".MainActivity"

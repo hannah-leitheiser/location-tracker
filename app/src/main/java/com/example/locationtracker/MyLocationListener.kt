@@ -9,19 +9,16 @@ import android.location.GnssStatus
 import android.location.Location
 import android.os.IBinder
 import android.location.LocationListener
+import android.location.LocationManager
 import android.os.PowerManager
+import android.os.PowerManager.WakeLock
 import android.os.SystemClock
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 
-class MyLocationListener( saveFile: LocalJSONFileManager) : LocationListener {
-    private val saveFile = saveFile
+class MyLocationListener : Service(), LocationListener {
     var gnss : GnssStatus? = null
-
-    var satellitesUsed = 0
-    var GPSFixCount = 0
-    var NETFixCount = 0
-    var FusedFixCount = 0
 
     override fun onLocationChanged(location: Location) {
         var satsTotal = 0
@@ -80,5 +77,35 @@ class MyLocationListener( saveFile: LocalJSONFileManager) : LocationListener {
         if( location.provider == "gps") GPSFixCount++
         if( location.provider == "network") NETFixCount++
         if( location.provider == "fused") FusedFixCount++
+    }
+
+    override fun onStartCommand(intent: Intent, flags: Int, startId: Int): Int {
+        Toast.makeText(this, "onStartCommand", Toast.LENGTH_SHORT).show()
+
+        val locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
+        locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0, 0f, this)
+        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0f, this)
+        locationManager.requestLocationUpdates(LocationManager.FUSED_PROVIDER, 0, 0f, this)
+        locationManager.registerGnssStatusCallback(object : GnssStatus.Callback() {
+            override fun onSatelliteStatusChanged(s: GnssStatus) {
+                gnss = s
+            }
+        })
+
+        val wl: WakeLock
+
+        val pm = getSystemService(POWER_SERVICE) as PowerManager
+        wl = pm.newWakeLock(
+            PowerManager.PARTIAL_WAKE_LOCK,
+            "whatever"
+        )
+        wl.acquire()
+
+
+        return START_STICKY
+    }
+
+    override fun onBind(p0: Intent?): IBinder? {
+        TODO("Not yet implemented")
     }
 }
