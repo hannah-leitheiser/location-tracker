@@ -7,10 +7,7 @@ import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
-import android.location.GnssStatus
-import android.location.LocationManager
 import android.net.Uri
-import android.net.wifi.WifiManager
 import android.provider.DocumentsContract
 import android.provider.MediaStore
 import android.view.View
@@ -18,21 +15,19 @@ import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.app.ActivityCompat
-import androidx.core.content.ContextCompat
 import java.io.FileNotFoundException
 import java.io.FileOutputStream
 import java.io.IOException
 import android.os.*
 import android.telephony.*
-import android.os.PowerManager
 
 lateinit var saveFile : LocalJSONFileManager
 var satellitesUsed = 0
 var GPSFixCount = 0
 var NETFixCount = 0
 var FusedFixCount = 0
-
+var WIFIScanCount = 0
+var Networks=0
 
 fun formatResult(result : Int, specialValues : Array<Int>, specials : Array<String>) : String {
     for(i in 0..specials.size-1) {
@@ -65,8 +60,6 @@ fun printIntArray( a : IntArray ) : String {
 const val CREATE_FILE = 1
 
 class MainActivity : AppCompatActivity(), SensorEventListener {
-    private val locListen  = MyLocationListener()
-    private lateinit var locationManager: LocationManager
     private lateinit var tvGpsLocation: TextView
     private val locationPermissionCode = 2
     private val TAG = "MainActivity"
@@ -74,8 +67,8 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
         "com.example.android.actionopendocument.pref.LAST_OPENED_URI_KEY"
     private lateinit var sensorManager: SensorManager
     private var mSensor: Sensor? = null
-    private lateinit var wifiManager: WifiManager
-    private lateinit var telephony : TelephonyManager
+    private lateinit var telephony: TelephonyManager
+
     //private lateinit var wakeLock: PowerManager.WakeLock
     var GPSFixes = 0
     var NETFixes = 0
@@ -84,7 +77,6 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
     var FusedFixes = 0
     var WIFIScan = 0
     var Satellites = 0
-    var Networks = 0
     var Towers = 0
     var Seconds = 0
 
@@ -162,28 +154,6 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
         telephony = getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
 
 
-
-
-        val context : Context = applicationContext
-
-        wifiManager = context.getSystemService(Context.WIFI_SERVICE) as WifiManager
-
-        val wifiScanReceiver = object : BroadcastReceiver() {
-
-            override fun onReceive(context: Context, intent: Intent) {
-                val success = intent.getBooleanExtra(WifiManager.EXTRA_RESULTS_UPDATED, false)
-                if (success) {
-                    //scanSuccess()
-                } else {
-                    scanFailure()
-                }
-            }
-        }
-
-        val intentFilter = IntentFilter()
-        intentFilter.addAction(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION)
-        context.registerReceiver(wifiScanReceiver, intentFilter)
-
         val mainHandler = Handler(Looper.getMainLooper())
 
         mainHandler.post(object : Runnable {
@@ -200,30 +170,24 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
 
                 Seconds = Seconds + 2
 
-                var success = wifiManager.startScan()
-
-                if (success) {
-                // scan failure handling
-                    scanSuccess()
-                }
 
 
 
-                    findViewById<TextView>(R.id.info).text =
-                                "-------------------------------------------\n" +
-                                "              Stored Data                       \n\n" +
-                                "GPSFixes    : " + GPSFixCount.toString() + "\n" +
-                                "NETFixes    : " + NETFixCount.toString() + "\n" +
-                                "Fused Fixes : " + FusedFixCount.toString() + "\n" +
-                                "Wifi Scan   : " + WIFIScan.toString() + "\n" +
-                                "CellScan    : " + CellScan.toString() + "\n" +
-                                "Pressure    : " + Pressure.toString() + "\n\n" +
-                                "-------------------------------------------\n" +
-                                "                Current Status                   \n\n" +
-                                "Networks    : " + Networks.toString() + "\n" +
-                                "GPS Sats    : " + satellitesUsed.toString() + "\n" +
-                                "Cell Towers : " + Towers.toString() + "\n" +
-                                "Seconds     : " + Seconds.toString()
+                findViewById<TextView>(R.id.info).text =
+                    "-------------------------------------------\n" +
+                            "              Stored Data                       \n\n" +
+                            "GPSFixes    : " + GPSFixCount.toString() + "\n" +
+                            "NETFixes    : " + NETFixCount.toString() + "\n" +
+                            "Fused Fixes : " + FusedFixCount.toString() + "\n" +
+                            "Wifi Scan   : " + WIFIScanCount.toString() + "\n" +
+                            "CellScan    : " + CellScan.toString() + "\n" +
+                            "Pressure    : " + Pressure.toString() + "\n\n" +
+                            "-------------------------------------------\n" +
+                            "                Current Status                   \n\n" +
+                            "Networks    : " + Networks.toString() + "\n" +
+                            "GPS Sats    : " + satellitesUsed.toString() + "\n" +
+                            "Cell Towers : " + Towers.toString() + "\n" +
+                            "Seconds     : " + Seconds.toString()
 
 
 
@@ -234,7 +198,6 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
         })
 
         //val success = wifiManager.startScan()
-
 
 
         sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
@@ -269,15 +232,6 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
                 WIFIScan = 0
 
 
-
-
-
-
-
-
-
-
-
             }
 
         }
@@ -288,12 +242,15 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
     private fun getLocation() {
         Intent(this, MyLocationListener::class.java).also { intent ->
             startService(intent)
+            Intent(this, MyWifiScanListener::class.java).also { intent ->
+                startService(intent)
+
+            }
+
         }
 
-    }
 
-
-             /*   var dataPayloadMutable : MutableList<Array<Array<String>>> =
+        /*   var dataPayloadMutable : MutableList<Array<Array<String>>> =
                     mutableListOf <Array<Array<String>>>( )
 
                 var cells = telephony.allCellInfo
@@ -473,104 +430,59 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
 */
         //} )
 
-    //}
+        //}
+    }
 
-
-
-
-
-
-    override fun onRequestPermissionsResult(
-        requestCode: Int,
-        permissions: Array<out String>,
-        grantResults: IntArray
-    ) {
-        if (requestCode == locationPermissionCode) {
-            if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                Toast.makeText(this, "Permission Granted", Toast.LENGTH_SHORT).show()
-            } else {
-                Toast.makeText(this, "Permission Denied", Toast.LENGTH_SHORT).show()
+        override fun onRequestPermissionsResult(
+            requestCode: Int,
+            permissions: Array<out String>,
+            grantResults: IntArray
+        ) {
+            if (requestCode == locationPermissionCode) {
+                if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    Toast.makeText(this, "Permission Granted", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(this, "Permission Denied", Toast.LENGTH_SHORT).show()
+                }
             }
         }
-    }
 
-    override fun onAccuracyChanged(sensor: Sensor, accuracy: Int) {
-        // Do something here if sensor accuracy changes.
-    }
-
-    override fun onSensorChanged(event: SensorEvent) {
-        // The light sensor returns a single value.
-        // Many sensors return 3 values, one for each axis.
-        val lux = event.values[0]
-        // Do something with this sensor value.
-        val meas = arrayOf (
-                    arrayOf (
-                        arrayOf( "Value", lux.toString() ) ) )
-
-        //val fileContents = formatJSONData( android.os.Build.MODEL, System.currentTimeMillis(), "pressure", meas)
-        //val filename = "myfile"
-
-        //openFileOutput(filename, Context.MODE_APPEND).use {
-        //    it.write(fileContents.toByteArray())
-        //}
-        Pressure = Pressure + 1
-
-    }
-
-    override fun onResume() {
-        super.onResume()
-        mSensor?.also { light ->
-            sensorManager.registerListener(this, light, 1000000)
+        override fun onAccuracyChanged(sensor: Sensor, accuracy: Int) {
+            // Do something here if sensor accuracy changes.
         }
-    }
 
-    override fun onPause() {
-        super.onPause()
-        sensorManager.unregisterListener(this)
-    }
-
-
-    private fun scanSuccess() {
-
-        val tsLong = System.currentTimeMillis()
-        val bootTime = tsLong - (SystemClock.elapsedRealtimeNanos() / 1000000L)
-        var earliestTimestamp = System.currentTimeMillis()
-        val results = wifiManager.scanResults
-        var dataPayloadMutable : MutableList<Array<Array<String>>> =
-             mutableListOf <Array<Array<String>>>( )
-        Networks = results.size
-        for(i in 0..results.size-1) {
-            val wifiTimestamp = ((results[0].timestamp / 1000L) + bootTime)
-            if (  (wifiTimestamp < earliestTimestamp) )
-                earliestTimestamp = wifiTimestamp
-            dataPayloadMutable.add(
+        override fun onSensorChanged(event: SensorEvent) {
+            // The light sensor returns a single value.
+            // Many sensors return 3 values, one for each axis.
+            val lux = event.values[0]
+            // Do something with this sensor value.
+            val meas = arrayOf(
                 arrayOf(
-                    arrayOf("BSSID", results[i].BSSID.toString()),
-                    arrayOf("SSID", results[i].SSID.toString()),
-                    arrayOf("level", results[i].level.toString()),
-                    arrayOf("frequency", results[i].frequency.toString()),
-                    arrayOf("timestamp", wifiTimestamp.toString())
+                    arrayOf("Value", lux.toString())
                 )
             )
+
+            //val fileContents = formatJSONData( android.os.Build.MODEL, System.currentTimeMillis(), "pressure", meas)
+            //val filename = "myfile"
+
+            //openFileOutput(filename, Context.MODE_APPEND).use {
+            //    it.write(fileContents.toByteArray())
+            //}
+            Pressure = Pressure + 1
+
         }
 
-        //val fileContents = formatJSONData( android.os.Build.MODEL, earliestTimestamp, "wifi scan", dataPayloadMutable.toTypedArray() )
+        override fun onResume() {
+            super.onResume()
+            mSensor?.also { light ->
+                sensorManager.registerListener(this, light, 1000000)
+            }
+        }
 
-        //val filename = "myfile"
-
-        //openFileOutput(filename, Context.MODE_APPEND).use {
-        //    it.write(fileContents.toByteArray())
-        //}
-        WIFIScan = WIFIScan + 1
-
+        override fun onPause() {
+            super.onPause()
+            sensorManager.unregisterListener(this)
+        }
 
 
     }
-
-    private fun scanFailure() {
-        // handle failure: new scan did NOT succeed
-        // consider using old scan results: these are the OLD results!
-        // val results = wifiManager.scanResults
-    }
-
-}

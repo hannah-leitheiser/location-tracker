@@ -93,11 +93,10 @@ class MyLocationListener : Service(), LocationListener {
         })
 
         val wl: WakeLock
-
         val pm = getSystemService(POWER_SERVICE) as PowerManager
         wl = pm.newWakeLock(
             PowerManager.PARTIAL_WAKE_LOCK,
-            "whatever"
+            "MyLocationListener"
         )
         wl.acquire()
 

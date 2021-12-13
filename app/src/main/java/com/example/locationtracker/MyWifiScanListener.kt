@@ -1,0 +1,109 @@
+package com.example.locationtracker
+
+import android.app.Service
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.net.wifi.WifiManager
+import android.os.*
+
+class MyWifiScanListener : Service() {
+    private lateinit var wifiManager: WifiManager
+
+    override fun onBind(intent: Intent): IBinder {
+        TODO("Return the communication channel to the service.")
+    }
+
+    override fun onStartCommand(intent: Intent, flags: Int, startId: Int): Int {
+        val context: Context = applicationContext
+        wifiManager = context.getSystemService(Context.WIFI_SERVICE) as WifiManager
+
+        val wifiScanReceiver = object : BroadcastReceiver() {
+
+            override fun onReceive(context: Context, intent: Intent) {
+                val success = intent.getBooleanExtra(WifiManager.EXTRA_RESULTS_UPDATED, false)
+                if (success) {
+                    //scanSuccess()
+                } else {
+                    scanFailure()
+                }
+            }
+        }
+
+        val intentFilter = IntentFilter()
+        intentFilter.addAction(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION)
+        context.registerReceiver(wifiScanReceiver, intentFilter)
+
+        val mainHandler = Handler(Looper.getMainLooper())
+
+        mainHandler.post(object : Runnable {
+            override fun run() {
+
+
+                var success = wifiManager.startScan()
+
+                if (success) {
+                    // scan failure handling
+                    scanSuccess()
+                }
+
+                mainHandler.postDelayed(this, 2000)
+
+
+            }
+
+
+        })
+        val wl: PowerManager.WakeLock
+        val pm = getSystemService(POWER_SERVICE) as PowerManager
+        wl = pm.newWakeLock(
+            PowerManager.PARTIAL_WAKE_LOCK,
+            "MyWifiScanListener"
+        )
+        wl.acquire()
+
+
+        return START_STICKY
+
+    }
+
+
+
+    private fun scanSuccess() {
+
+        val tsLong = System.currentTimeMillis()
+        val bootTime = tsLong - (SystemClock.elapsedRealtimeNanos() / 1000000L)
+        var earliestTimestamp = System.currentTimeMillis()
+        val results = wifiManager.scanResults
+        var dataPayloadMutable: MutableList<Array<Array<String>>> =
+            mutableListOf<Array<Array<String>>>()
+        Networks = results.size
+        for (i in 0..results.size - 1) {
+            val wifiTimestamp = ((results[0].timestamp / 1000L) + bootTime)
+            if ((wifiTimestamp < earliestTimestamp))
+                earliestTimestamp = wifiTimestamp
+            dataPayloadMutable.add(
+                arrayOf(
+                    arrayOf("BSSID", results[i].BSSID.toString()),
+                    arrayOf("SSID", results[i].SSID.toString()),
+                    arrayOf("level", results[i].level.toString()),
+                    arrayOf("frequency", results[i].frequency.toString()),
+                    arrayOf("timestamp", wifiTimestamp.toString())
+                )
+            )
+        }
+
+        saveFile.writeData(earliestTimestamp, "wifi scan", dataPayloadMutable.toTypedArray())
+
+        WIFIScanCount++
+
+
+    }
+
+    private fun scanFailure() {
+        // handle failure: new scan did NOT succeed
+        // consider using old scan results: these are the OLD results!
+        // val results = wifiManager.scanResults
+    }
+}
