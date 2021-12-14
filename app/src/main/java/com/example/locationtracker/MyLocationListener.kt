@@ -87,7 +87,7 @@ class MyLocationListener : Service(), LocationListener {
         val locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
         locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0, 0f, this)
         locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0f, this)
-        locationManager.requestLocationUpdates(LocationManager.FUSED_PROVIDER, 0, 0f, this)
+        //locationManager.requestLocationUpdates(LocationManager.FUSED_PROVIDER, 0, 0f, this)
         locationManager.registerGnssStatusCallback(object : GnssStatus.Callback() {
             override fun onSatelliteStatusChanged(s: GnssStatus) {
                 gnss = s

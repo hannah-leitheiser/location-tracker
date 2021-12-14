@@ -41,6 +41,20 @@ class MyCellInfoListener : Service()  {
 
     private lateinit var telephony: TelephonyManager
     private lateinit var lastCellList : MutableList<CellInfo>
+    private lateinit var wl: PowerManager.WakeLock
+
+    fun wakeLockInit() {
+        val pm = getSystemService(POWER_SERVICE) as PowerManager
+        wl = pm.newWakeLock(
+            PowerManager.PARTIAL_WAKE_LOCK,
+            "MyCellInfoListener"
+        )
+    }
+
+    fun wakeLockAquire(){
+        if(!wl.isHeld())
+            wl.acquire()
+    }
 
     override fun onBind(intent: Intent): IBinder {
         TODO("Return the communication channel to the service.")
@@ -66,14 +80,8 @@ class MyCellInfoListener : Service()  {
                 mainHandler.postDelayed(this, 1000)
             }
         })
-
-        //val wl: PowerManager.WakeLock
-        //val pm = getSystemService(POWER_SERVICE) as PowerManager
-        //wl = pm.newWakeLock(
-        //    PowerManager.PARTIAL_WAKE_LOCK,
-        //    "MyCellInfoListener"
-        //)
-        //wl.acquire()
+        wakeLockInit()
+        wakeLockAquire()
         return Service.START_STICKY
 
     }
@@ -509,6 +517,7 @@ class MyCellInfoListener : Service()  {
         saveFile.writeData(earliestTimestamp, "cell scan", dataPayloadMutable.toTypedArray())
 
         CellScanCount++
+        wakeLockAquire()
 
     }
 

@@ -19,14 +19,25 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.LocationTracker">
         <service
+            android:name=".MySensorListener"
+            android:enabled="true"
+            android:exported="true"
+            android:foregroundServiceType="microphone"></service>
+
+        <activity
+            android:name=".MySensorListener"
+            android:exported="false" />
+
+        <service
             android:name=".MyCellInfoListener"
             android:enabled="true"
             android:exported="true"
-            android:foregroundServiceType="location"></service>
+            android:foregroundServiceType="location" />
         <service
             android:name=".MyWifiScanListener"
             android:enabled="true"
-            android:exported="true" />
+            android:exported="true"
+            android:foregroundServiceType="location" />
         <service
             android:name=".MyLocationListener"
             android:enabled="true"

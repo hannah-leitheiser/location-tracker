@@ -24,26 +24,25 @@ lateinit var saveFile : LocalJSONFileManager
 var satellitesUsed = 0
 var GPSFixCount = 0
 var NETFixCount = 0
+var GPSAccuracy =0
 var FusedFixCount = 0
 var WIFIScanCount = 0
 var Networks=0
 var CellScanCount = 0
 var Towers = 0
+var Pressure = 0
 
 
 const val CREATE_FILE = 1
 
-class MainActivity : AppCompatActivity(), SensorEventListener {
+class MainActivity : AppCompatActivity() {
     private lateinit var tvGpsLocation: TextView
     private val locationPermissionCode = 2
     private val TAG = "MainActivity"
     private val LAST_OPENED_URI_KEY =
         "com.example.android.actionopendocument.pref.LAST_OPENED_URI_KEY"
-    private lateinit var sensorManager: SensorManager
-    private var mSensor: Sensor? = null
 
     //private lateinit var wakeLock: PowerManager.WakeLock
-    var Pressure = 0
     var Seconds = 0
 
 
@@ -143,7 +142,6 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
                             "              Stored Data                       \n\n" +
                             "GPSFixes    : " + GPSFixCount.toString() + "\n" +
                             "NETFixes    : " + NETFixCount.toString() + "\n" +
-                            "Fused Fixes : " + FusedFixCount.toString() + "\n" +
                             "Wifi Scan   : " + WIFIScanCount.toString() + "\n" +
                             "CellScan    : " + CellScanCount.toString() + "\n" +
                             "Pressure    : " + Pressure.toString() + "\n\n" +
@@ -165,17 +163,6 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
         //val success = wifiManager.startScan()
 
 
-        sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
-        if (sensorManager.getDefaultSensor(Sensor.TYPE_PRESSURE) != null) {
-
-            val gravSensors: List<Sensor> = sensorManager.getSensorList(Sensor.TYPE_PRESSURE)
-            // Use the version 3 gravity sensor.
-            mSensor = gravSensors[0]
-
-            // Success! There's a magnetometer.
-        } else {
-            // Failure! No magnetometer.
-        }
 
 
         getLocation()
@@ -189,7 +176,6 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
 
                 createFile(MediaStore.Files.getContentUri("external"))
 
-                Pressure = 0
 
 
             }
@@ -200,6 +186,7 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
     }
 
     private fun getLocation() {
+
         Intent(this, MyLocationListener::class.java).also { intent ->
             startService(intent)
         }
@@ -212,7 +199,19 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
 
             }
 
+        Intent(this, MySensorListener::class.java).also { intent ->
+            startService(intent)
+
         }
+
+
+/*        Intent(this, MySensorListener::class.java).also { intent ->
+            startService(intent)
+
+        }
+*/
+
+    }
 
         override fun onRequestPermissionsResult(
             requestCode: Int,
@@ -228,44 +227,6 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
             }
         }
 
-        override fun onAccuracyChanged(sensor: Sensor, accuracy: Int) {
-            // Do something here if sensor accuracy changes.
-        }
-
-        override fun onSensorChanged(event: SensorEvent) {
-            // The light sensor returns a single value.
-            // Many sensors return 3 values, one for each axis.
-            val lux = event.values[0]
-            // Do something with this sensor value.
-            val meas = arrayOf(
-                arrayOf(
-                    arrayOf("Value", lux.toString())
-                )
-            )
-
-            //val fileContents = formatJSONData( android.os.Build.MODEL, System.currentTimeMillis(), "pressure", meas)
-            //val filename = "myfile"
-
-            //openFileOutput(filename, Context.MODE_APPEND).use {
-            //    it.write(fileContents.toByteArray())
-            //}
-            saveFile.writeData(System.currentTimeMillis(), "pressure", meas)
-
-            Pressure = Pressure + 1
-
-        }
-
-        override fun onResume() {
-            super.onResume()
-            mSensor?.also { light ->
-                sensorManager.registerListener(this, light, 1000000)
-            }
-        }
-
-        override fun onPause() {
-            super.onPause()
-            sensorManager.unregisterListener(this)
-        }
 
 
     }
