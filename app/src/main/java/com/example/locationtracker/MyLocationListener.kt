@@ -1,10 +1,8 @@
 package com.example.locationtracker
 
-import android.Manifest
 import android.app.Service
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.location.GnssStatus
 import android.location.Location
 import android.os.IBinder
@@ -14,13 +12,17 @@ import android.os.PowerManager
 import android.os.PowerManager.WakeLock
 import android.os.SystemClock
 import android.widget.Toast
-import androidx.appcompat.app.AppCompatActivity
-import androidx.core.app.ActivityCompat
 
 class MyLocationListener : Service(), LocationListener {
     var gnss : GnssStatus? = null
+    lateinit var wl: WakeLock
 
     override fun onLocationChanged(location: Location) {
+
+        if(!wl.isHeld()) {
+            wl.acquire()
+        }
+
         var satsTotal = 0
         var satsUsed = 0
         var data = arrayOf( arrayOf( arrayOf( "", "" )))
@@ -92,7 +94,6 @@ class MyLocationListener : Service(), LocationListener {
             }
         })
 
-        val wl: WakeLock
         val pm = getSystemService(POWER_SERVICE) as PowerManager
         wl = pm.newWakeLock(
             PowerManager.PARTIAL_WAKE_LOCK,
@@ -105,6 +106,6 @@ class MyLocationListener : Service(), LocationListener {
     }
 
     override fun onBind(p0: Intent?): IBinder? {
-        TODO("Not yet implemented")
+    return null
     }
 }
