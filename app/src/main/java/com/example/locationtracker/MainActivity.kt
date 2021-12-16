@@ -31,6 +31,10 @@ var Networks=0
 var CellScanCount = 0
 var Towers = 0
 var Pressure = 0
+var PressureC = 0f
+var Acceleration = 0
+var Accel : FloatArray = floatArrayOf( 0f,0f,0f)
+var bestWifi : String = ""
 
 
 const val CREATE_FILE = 1
@@ -144,12 +148,16 @@ class MainActivity : AppCompatActivity() {
                             "NETFixes    : " + NETFixCount.toString() + "\n" +
                             "Wifi Scan   : " + WIFIScanCount.toString() + "\n" +
                             "CellScan    : " + CellScanCount.toString() + "\n" +
-                            "Pressure    : " + Pressure.toString() + "\n\n" +
+                            "Pressure    : " + Pressure.toString() + "\n" +
+                            "Accel    : " + Acceleration.toString() + "\n\n" +
                             "-------------------------------------------\n" +
                             "                Current Status                   \n\n" +
                             "Networks    : " + Networks.toString() + "\n" +
+                            "Best    : " + bestWifi.toString() + "\n" +
                             "GPS Sats    : " + satellitesUsed.toString() + "\n" +
                             "Cell Towers : " + Towers.toString() + "\n" +
+                            "Pressure : " + PressureC.toString() + "\n" +
+                            "Accel: %.2f %.2f %.2f".format(Accel[0], Accel[1], Accel[2]) + "\n" +
                             "Seconds     : " + Seconds.toString()
 
 

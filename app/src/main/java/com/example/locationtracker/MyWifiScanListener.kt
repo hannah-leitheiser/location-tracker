@@ -71,7 +71,7 @@ class MyWifiScanListener : Service() {
 
 
     private fun scanSuccess() {
-
+        var bestWifiLevel = -1000
         val tsLong = System.currentTimeMillis()
         val bootTime = tsLong - (SystemClock.elapsedRealtimeNanos() / 1000000L)
         var earliestTimestamp = System.currentTimeMillis()
@@ -83,6 +83,10 @@ class MyWifiScanListener : Service() {
             val wifiTimestamp = ((results[0].timestamp / 1000L) + bootTime)
             if ((wifiTimestamp < earliestTimestamp))
                 earliestTimestamp = wifiTimestamp
+            if(results[i].level > bestWifiLevel) {
+                bestWifiLevel = results[i].level
+                bestWifi = results[i].SSID + "_" + results[i].level.toString()
+                }
             dataPayloadMutable.add(
                 arrayOf(
                     arrayOf("BSSID", results[i].BSSID.toString()),
