@@ -47,7 +47,7 @@ class MainActivity : AppCompatActivity() {
         "com.example.android.actionopendocument.pref.LAST_OPENED_URI_KEY"
 
     //private lateinit var wakeLock: PowerManager.WakeLock
-    var Seconds = 0
+    var Seconds = 0f
 
 
     //val contentResolver  = applicationContext.contentResolver
@@ -136,7 +136,7 @@ class MainActivity : AppCompatActivity() {
                     findViewById<TextView>(R.id.textStatus).text = "Wake Lock Held"
                 }*/
 
-                Seconds = Seconds + 2
+                Seconds = Seconds + 0.2f
 
 
 
@@ -158,13 +158,13 @@ class MainActivity : AppCompatActivity() {
                             "Cell Towers : " + Towers.toString() + "\n" +
                             "Pressure : " + PressureC.toString() + "\n" +
                             "Accel: %.2f %.2f %.2f".format(Accel[0], Accel[1], Accel[2]) + "\n" +
-                            "Seconds     : " + Seconds.toString()
+                            "Seconds: %.1f".format(Seconds)
 
 
 
 
 
-                mainHandler.postDelayed(this, 2000)
+                mainHandler.postDelayed(this, 200)
             }
         })
 

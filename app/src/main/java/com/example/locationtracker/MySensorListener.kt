@@ -93,8 +93,12 @@ class MySensorListener : Service(), SensorEventListener {
 
 
     override fun onSensorChanged(event: SensorEvent) {
-        if( event.sensor.type == Sensor.TYPE_ROTATION_VECTOR)
-            rotationVector = event.values
+        if( event.sensor.type == Sensor.TYPE_ROTATION_VECTOR) {
+            rotationVector = floatArrayOf(
+                event.values[3], event.values[0],
+                event.values[1], event.values[2]
+            )
+        }
 
         // The light sensor returns a single value.
         // Many sensors return 3 values, one for each axis.
@@ -102,10 +106,15 @@ class MySensorListener : Service(), SensorEventListener {
             if( event.values != null)
                 savePressure( event.values )
         if( event.sensor.type == Sensor.TYPE_LINEAR_ACCELERATION)
-            if( event.values != null && rotationVector.size == 5) {
+            if( event.values != null && rotationVector.size == 4) {
 
-                val accelerationVector = point_rotation_by_quaternion( event.values, rotationVector)
+                val accelerationVector = point_rotation_by_quaternion( event.values,
+                    rotationVector)
                 saveAcceleration(accelerationVector)
+                Accel = accelerationVector
+
+
+
             }
 
     }
@@ -139,7 +148,6 @@ class MySensorListener : Service(), SensorEventListener {
         saveFile.writeData(System.currentTimeMillis(), "acceleration", meas)
 
         Acceleration = Acceleration + 1
-        Accel = values
         wakeLockAquire()
 
     }
