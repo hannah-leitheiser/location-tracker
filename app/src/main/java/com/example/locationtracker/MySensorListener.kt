@@ -7,10 +7,9 @@ import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
+import android.os.*
 import androidx.appcompat.app.AppCompatActivity
-import android.os.Bundle
-import android.os.IBinder
-import android.os.PowerManager
+import android.widget.TextView
 
 fun quaternion_mult(q : FloatArray,r : FloatArray) : FloatArray {
     return floatArrayOf(r[0] * q[0] - r[1] * q[1] - r[2] * q[2] - r[3] * q[3],
@@ -34,6 +33,9 @@ class MySensorListener : Service(), SensorEventListener {
     private lateinit var wl: PowerManager.WakeLock
     private var rotationVector : FloatArray = FloatArray( 0 )
 
+    private var accelerationArray : MutableList<FloatArray> = mutableListOf()
+    private var accelerationTimestamps : MutableList<Long> = mutableListOf<Long>()
+
     fun wakeLockInit() {
         val pm = getSystemService(POWER_SERVICE) as PowerManager
         wl = pm.newWakeLock(
@@ -41,6 +43,7 @@ class MySensorListener : Service(), SensorEventListener {
             "MySensorListener"
         )
     }
+
 
     fun wakeLockAquire(){
         if(!wl.isHeld())
@@ -61,19 +64,65 @@ class MySensorListener : Service(), SensorEventListener {
         if (sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR) != null) {
             val pSensors: List<Sensor> = sensorManager.getSensorList(Sensor.TYPE_ROTATION_VECTOR)
             rotationSensor = pSensors[0]
-            sensorManager.registerListener(this, rotationSensor, 1000000)
+            sensorManager.registerListener(this, rotationSensor, 10000)
         } else {
         }
 
         if (sensorManager.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION) != null) {
             val pSensors: List<Sensor> = sensorManager.getSensorList(Sensor.TYPE_LINEAR_ACCELERATION)
             accelSensor = pSensors[0]
-            sensorManager.registerListener(this, accelSensor, 1000000)
+            sensorManager.registerListener(this, accelSensor, 10000)
         } else {
         }
 
         wakeLockInit()
         wakeLockAquire()
+
+        val mainHandler = Handler(Looper.getMainLooper())
+
+        mainHandler.post(object : Runnable {
+            override fun run() {
+                if(accelerationTimestamps.size > 1) {
+
+                    var accelX = 0f
+                    var accelY = 0f
+                    var accelZ = 0f
+
+                    for(i in 0..accelerationTimestamps.size-2)
+                        {
+                          accelX = accelX + accelerationArray[i][0] *
+                                  ( accelerationTimestamps[i+1] -
+                                          accelerationTimestamps[i])
+                            accelY = accelY + accelerationArray[i][1] *
+                                    ( accelerationTimestamps[i+1] -
+                                            accelerationTimestamps[i])
+                            accelZ = accelZ + accelerationArray[i][2] *
+                                    ( accelerationTimestamps[i+1] -
+                                            accelerationTimestamps[i])
+                        }
+                    val ADuration = accelerationTimestamps[ accelerationTimestamps.size-1 ] -
+                                    accelerationTimestamps[0]
+                    Accel = floatArrayOf(   accelX / ADuration,
+                        accelY / ADuration,
+                        accelZ / ADuration )
+                    saveAcceleration(Accel ,
+                                        ADuration)
+                    if(rotationVector.size == 5)
+                        saveRotationVector( rotationVector)
+
+                    accelerationArray = mutableListOf()
+                    accelerationTimestamps = mutableListOf<Long>()
+
+
+                }
+
+
+                mainHandler.postDelayed(this, 1000)
+            }
+        })
+
+
+
         return START_STICKY
     }
 
@@ -94,10 +143,8 @@ class MySensorListener : Service(), SensorEventListener {
 
     override fun onSensorChanged(event: SensorEvent) {
         if( event.sensor.type == Sensor.TYPE_ROTATION_VECTOR) {
-            rotationVector = floatArrayOf(
-                event.values[3], event.values[0],
-                event.values[1], event.values[2]
-            )
+            rotationVector = event.values
+
         }
 
         // The light sensor returns a single value.
@@ -106,14 +153,15 @@ class MySensorListener : Service(), SensorEventListener {
             if( event.values != null)
                 savePressure( event.values )
         if( event.sensor.type == Sensor.TYPE_LINEAR_ACCELERATION)
-            if( event.values != null && rotationVector.size == 4) {
+            if( event.values != null && rotationVector.size == 5) {
 
                 val accelerationVector = point_rotation_by_quaternion( event.values,
-                    rotationVector)
-                saveAcceleration(accelerationVector)
-                Accel = accelerationVector
-
-
+                    floatArrayOf( rotationVector[3],
+                                     rotationVector[0],
+                                     rotationVector[1],
+                                     rotationVector[2]) )
+                accelerationArray.add( accelerationVector)
+                accelerationTimestamps.add( System.currentTimeMillis())
 
             }
 
@@ -135,13 +183,14 @@ class MySensorListener : Service(), SensorEventListener {
         wakeLockAquire()
     }
 
-    fun saveAcceleration( values : FloatArray ) {
+    fun saveAcceleration( values : FloatArray, duration : Long ) {
         // Do something with this sensor value.
         val meas = arrayOf(
             arrayOf(
                 arrayOf("x", values[0].toString()),
                 arrayOf("y", values[1].toString()),
-                arrayOf("z", values[2].toString())
+                arrayOf("z", values[2].toString()),
+                arrayOf("duration", duration.toString())
             )
         )
 
@@ -151,6 +200,27 @@ class MySensorListener : Service(), SensorEventListener {
         wakeLockAquire()
 
     }
+
+    fun saveRotationVector( values : FloatArray ) {
+        // Do something with this sensor value.
+        val meas = arrayOf(
+            arrayOf(
+                arrayOf("x", values[3].toString()),
+                arrayOf("i", values[0].toString()),
+                arrayOf("j", values[1].toString()),
+                arrayOf("k", values[2].toString()),
+                arrayOf("bearing accuracy", values[4].toString())
+
+
+        )
+        )
+
+        saveFile.writeData(System.currentTimeMillis(), "rotation vector", meas)
+
+        wakeLockAquire()
+
+    }
+
 
 
     override fun onAccuracyChanged(p0: Sensor?, p1: Int) {
