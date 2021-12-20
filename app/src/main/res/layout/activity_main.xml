@@ -27,8 +27,8 @@
 
     <TextView
         android:id="@+id/info"
-        android:layout_width="332dp"
-        android:layout_height="397dp"
+        android:layout_width="330dp"
+        android:layout_height="354dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/button" />
@@ -42,7 +42,7 @@
         tools:layout_editor_absoluteX="254dp" />
 
     <EditText
-        android:id="@+id/editTextTextPersonName"
+        android:id="@+id/editLocationLabel"
         android:layout_width="188dp"
         android:layout_height="175dp"
         android:ems="10"
@@ -52,28 +52,50 @@
         app:layout_constraintTop_toBottomOf="@+id/info" />
 
     <Button
-        android:id="@+id/button2"
+        android:id="@+id/startTimer"
 
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Button"
-        app:layout_constraintStart_toEndOf="@+id/editTextTextPersonName"
+        android:text="Start"
+        app:layout_constraintStart_toEndOf="@+id/editLocationLabel"
         app:layout_constraintTop_toBottomOf="@+id/info" />
 
     <Button
-        android:id="@+id/button3"
+        android:id="@+id/stopTimer"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Button"
-        app:layout_constraintStart_toEndOf="@+id/editTextTextPersonName"
-        app:layout_constraintTop_toBottomOf="@+id/textView" />
+        android:layout_marginStart="4dp"
+        android:layout_marginTop="16dp"
+        android:text="Stop"
+        app:layout_constraintStart_toEndOf="@+id/editLocationLabel"
+        app:layout_constraintTop_toBottomOf="@+id/duration" />
 
     <TextView
-        android:id="@+id/textView"
+        android:id="@+id/startTime"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:layout_marginStart="28dp"
         android:text="TextView"
-        app:layout_constraintStart_toEndOf="@+id/editTextTextPersonName"
-        app:layout_constraintTop_toBottomOf="@+id/button2" />
+        app:layout_constraintStart_toEndOf="@+id/editLocationLabel"
+        app:layout_constraintTop_toBottomOf="@+id/startTimer" />
+
+    <TextView
+        android:id="@+id/stopTime"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="28dp"
+        android:layout_marginTop="20dp"
+        android:text="TextView"
+        app:layout_constraintStart_toEndOf="@+id/editLocationLabel"
+        app:layout_constraintTop_toBottomOf="@+id/startTime" />
+
+    <TextView
+        android:id="@+id/duration"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="TextView"
+        app:layout_constraintStart_toEndOf="@+id/editLocationLabel"
+        app:layout_constraintTop_toBottomOf="@+id/stopTime" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

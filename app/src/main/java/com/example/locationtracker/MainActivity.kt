@@ -1,13 +1,9 @@
 package com.example.locationtracker
-import android.Manifest
+import android.R.string
 import android.app.Activity
 import android.app.AlertDialog
 import android.content.*
 import android.content.pm.PackageManager
-import android.hardware.Sensor
-import android.hardware.SensorEvent
-import android.hardware.SensorEventListener
-import android.hardware.SensorManager
 import android.icu.text.SimpleDateFormat
 import android.net.Uri
 import android.provider.DocumentsContract
@@ -23,13 +19,10 @@ import java.io.IOException
 import android.os.*
 import android.view.WindowManager
 import android.os.PowerManager
-import android.os.PowerManager.WakeLock
-import android.text.format.DateFormat
+import android.text.format.DateUtils
 import java.util.*
 import android.content.DialogInterface
-
-
-
+import android.widget.EditText
 
 
 lateinit var saveFile : LocalJSONFileManager
@@ -61,7 +54,19 @@ class MainActivity : AppCompatActivity() {
     private lateinit var wl: PowerManager.WakeLock
     var Seconds = 0f
 
+    private var startTime = 0L
+    private var stopTime = 0L
+    var lastPresses : LongArray = longArrayOf( 0,0,0,0,0)
 
+    private fun getDateTime(s: Long): String? {
+        try {
+            val sdf = SimpleDateFormat("yyyy/MM/dd HH:mm:ss ")
+            val netDate = Date(s)
+            return sdf.format(netDate)
+        } catch (e: Exception) {
+            return e.toString()
+        }
+    }
     //val contentResolver  = applicationContext.contentResolver
 
 
@@ -178,6 +183,17 @@ class MainActivity : AppCompatActivity() {
 
 
 
+                findViewById<TextView>(R.id.startTime).text = getDateTime(startTime)
+                findViewById<TextView>(R.id.stopTime).text = getDateTime(stopTime)
+                if( stopTime > startTime)
+                    findViewById<TextView>(R.id.duration).text = DateUtils.formatElapsedTime((stopTime - startTime)/1000L)
+                else
+                    findViewById<TextView>(R.id.duration).text = ""
+
+
+
+
+
 
 
                 mainHandler.postDelayed(this, 200)
@@ -197,13 +213,59 @@ class MainActivity : AppCompatActivity() {
             override fun onClick(v: View?) {
 
                createFile(MediaStore.Files.getContentUri("external"))
-
-
-
             }
-
         }
         )
+
+
+        var button2 = findViewById<Button>(R.id.startTimer)
+
+        button2.setOnClickListener(object : View.OnClickListener {
+            override fun onClick(v: View?) {
+                startTime =  System.currentTimeMillis()
+            }
+        }
+        )
+
+        var button3 = findViewById<Button>(R.id.stopTimer)
+
+        button3.setOnClickListener(object : View.OnClickListener {
+            override fun onClick(v: View?) {
+                stopTime =  System.currentTimeMillis()
+                lastPresses = longArrayOf ( lastPresses[1], lastPresses[2], lastPresses[3], lastPresses[4], stopTime)
+
+                if((lastPresses[4] - lastPresses[0] < 1000) && (stopTime > startTime) && ((stopTime - startTime) < (86400L * 1000L)) ) {
+
+                    val show = AlertDialog.Builder(this@MainActivity)
+                        .setTitle("Title")
+                        .setMessage("Do you really want to save " + findViewById<EditText>(R.id.editLocationLabel).text+"?")
+                        .setIcon(android.R.drawable.ic_dialog_alert)
+                        .setPositiveButton(
+                            "Yes",
+                            DialogInterface.OnClickListener { dialog, whichButton ->
+                                Toast.makeText(
+                                    this@MainActivity,
+                                    "Saving",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                                saveFile.writeData( startTime, "specified location",
+                                    arrayOf(
+                                    arrayOf(
+                                 arrayOf( "context", "The Home Depot"),
+                                 arrayOf( "label", findViewById<EditText>(R.id.editLocationLabel).text.toString())
+
+                                )
+                                ))
+                            })
+                        .setNegativeButton("No!", null).show()
+                }
+
+            }
+        }
+        )
+
+
+
 
     }
 
