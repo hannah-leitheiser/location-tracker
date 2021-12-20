@@ -3,13 +3,13 @@ package com.example.locationtracker
 import android.app.Service
 import android.content.Context
 import android.content.Intent
-import android.hardware.Sensor
-import android.hardware.SensorEvent
-import android.hardware.SensorEventListener
-import android.hardware.SensorManager
+import android.hardware.*
 import android.os.*
 import androidx.appcompat.app.AppCompatActivity
 import android.widget.TextView
+import android.hardware.TriggerEvent
+
+import android.hardware.TriggerEventListener
 
 fun quaternion_mult(q : FloatArray,r : FloatArray) : FloatArray {
     return floatArrayOf(r[0] * q[0] - r[1] * q[1] - r[2] * q[2] - r[3] * q[3],
@@ -25,6 +25,7 @@ fun point_rotation_by_quaternion(point : FloatArray, q : FloatArray) : FloatArra
     return floatArrayOf(result[1], result[2], result[3])
 }
 
+
 class MySensorListener : Service(), SensorEventListener {
     private lateinit var sensorManager: SensorManager
     private lateinit var pressureSensor: Sensor
@@ -32,6 +33,7 @@ class MySensorListener : Service(), SensorEventListener {
     private lateinit var accelSensor: Sensor
     private lateinit var wl: PowerManager.WakeLock
     private var rotationVector : FloatArray = FloatArray( 0 )
+    var lastTimeRan : Long = 0L
 
     private var accelerationArray : MutableList<FloatArray> = mutableListOf()
     private var accelerationTimestamps : MutableList<Long> = mutableListOf<Long>()
@@ -50,6 +52,23 @@ class MySensorListener : Service(), SensorEventListener {
             wl.acquire()
     }
 
+
+    fun flush()
+    {
+        sensorManager.flush(this)
+
+    }
+
+    fun registerSensorListeners() {
+
+   //     sensorManager.unregisterListener(this)
+
+
+           sensorManager.registerListener(this, pressureSensor, 1000000)
+            sensorManager.registerListener(this, rotationSensor, 10000)
+            sensorManager.registerListener(this, accelSensor, 10000)
+
+    }
 
     override fun onStartCommand(intent: Intent, flags: Int, startId: Int): Int {
 
@@ -82,6 +101,16 @@ class MySensorListener : Service(), SensorEventListener {
 
         mainHandler.post(object : Runnable {
             override fun run() {
+
+                /*if(System.currentTimeMillis() - lastTimeRan > 700 ) {
+                    Pressure=Pressure+1
+                    lastTimeRan = System.currentTimeMillis()
+                }*/
+
+                registerSensorListeners()
+                flush()
+
+                wakeLockAquire()
                 if(accelerationTimestamps.size > 1) {
 
                     var accelX = 0f
@@ -110,8 +139,8 @@ class MySensorListener : Service(), SensorEventListener {
                     if(rotationVector.size == 5)
                         saveRotationVector( rotationVector)
 
-                    accelerationArray = mutableListOf()
-                    accelerationTimestamps = mutableListOf<Long>()
+                    accelerationArray = mutableListOf( accelerationArray[ accelerationArray.size - 1 ] )
+                    accelerationTimestamps = mutableListOf<Long>( accelerationTimestamps[ accelerationTimestamps.size - 1] )
 
 
                 }
@@ -144,11 +173,8 @@ class MySensorListener : Service(), SensorEventListener {
     override fun onSensorChanged(event: SensorEvent) {
         if( event.sensor.type == Sensor.TYPE_ROTATION_VECTOR) {
             rotationVector = event.values
-
         }
 
-        // The light sensor returns a single value.
-        // Many sensors return 3 values, one for each axis.
         if( event.sensor.type == Sensor.TYPE_PRESSURE)
             if( event.values != null)
                 savePressure( event.values )
@@ -162,7 +188,6 @@ class MySensorListener : Service(), SensorEventListener {
                                      rotationVector[2]) )
                 accelerationArray.add( accelerationVector)
                 accelerationTimestamps.add( System.currentTimeMillis())
-
             }
 
     }
@@ -177,8 +202,8 @@ class MySensorListener : Service(), SensorEventListener {
         )
 
         saveFile.writeData(System.currentTimeMillis(), "pressure", meas)
-
         Pressure = Pressure + 1
+
         PressureC = pres
         wakeLockAquire()
     }
@@ -190,14 +215,13 @@ class MySensorListener : Service(), SensorEventListener {
                 arrayOf("x", values[0].toString()),
                 arrayOf("y", values[1].toString()),
                 arrayOf("z", values[2].toString()),
-                arrayOf("duration", duration.toString())
+                arrayOf("duration", saveFile.convertTimestampToDecimal(duration))
             )
         )
 
         saveFile.writeData(System.currentTimeMillis(), "acceleration", meas)
 
         Acceleration = Acceleration + 1
-        wakeLockAquire()
 
     }
 
@@ -224,10 +248,15 @@ class MySensorListener : Service(), SensorEventListener {
 
 
     override fun onAccuracyChanged(p0: Sensor?, p1: Int) {
-        //TODO("Not yet implemented")
+        //sensorManager.unregisterListener(this, pressureSensor)
+        //sensorManager.unregisterListener(this, accelSensor)
+        //sensorManager.unregisterListener(this, rotationSensor)
+        registerSensorListeners()
+     }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        sensorManager.unregisterListener(this)
+        wl.release()
     }
-
-
-
-
 }

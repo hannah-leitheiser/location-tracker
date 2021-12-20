@@ -229,7 +229,7 @@ class MyCellInfoListener : Service()  {
                                 arrayOf("UNAVALIABLE")
                             )
                         ),
-                        arrayOf("timestamp", towerTimestamp.toString())
+                        arrayOf("timestamp", saveFile.convertTimestampToDecimal(towerTimestamp))
                     )
                 )
             }
@@ -310,7 +310,7 @@ class MyCellInfoListener : Service()  {
                                 arrayOf("UNAVALIABLE")
                             )
                         ),
-                        arrayOf("timestamp", towerTimestamp.toString())
+                        arrayOf("timestamp", saveFile.convertTimestampToDecimal(towerTimestamp))
                     )
                 )
             }
@@ -370,7 +370,7 @@ class MyCellInfoListener : Service()  {
                                 ), arrayOf("GOOD", "GREAT", "MODERATE", "NONE/UNKNOWN", "POOR")
                             )
                         ),
-                        arrayOf("timestamp", towerTimestamp.toString())
+                        arrayOf("timestamp", saveFile.convertTimestampToDecimal(towerTimestamp))
                     )
                 )
             }
@@ -445,7 +445,7 @@ class MyCellInfoListener : Service()  {
                                 ), arrayOf("GOOD", "GREAT", "MODERATE", "NONE/UNKNOWN", "POOR")
                             )
                         ),
-                        arrayOf("timestamp", towerTimestamp.toString())
+                        arrayOf("timestamp", saveFile.convertTimestampToDecimal(towerTimestamp))
                     )
                 )
             }
@@ -508,7 +508,7 @@ class MyCellInfoListener : Service()  {
                                 ), arrayOf("GOOD", "GREAT", "MODERATE", "NONE/UNKNOWN", "POOR")
                             )
                         ),
-                        arrayOf("timestamp", towerTimestamp.toString())
+                        arrayOf("timestamp", saveFile.convertTimestampToDecimal(towerTimestamp))
                     )
                 )
             }

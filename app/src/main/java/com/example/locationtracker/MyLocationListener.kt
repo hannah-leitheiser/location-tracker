@@ -1,17 +1,20 @@
 package com.example.locationtracker
-
 import android.app.Service
 import android.content.Context
 import android.content.Intent
-import android.location.GnssStatus
-import android.location.Location
-import android.os.IBinder
-import android.location.LocationListener
-import android.location.LocationManager
-import android.os.PowerManager
 import android.os.PowerManager.WakeLock
-import android.os.SystemClock
 import android.widget.Toast
+import android.location.*
+import android.os.*
+import androidx.core.util.Consumer
+import com.google.android.gms.location.LocationRequest.PRIORITY_HIGH_ACCURACY
+import java.util.concurrent.Executor
+
+internal class DirectExecutor : Executor {
+    override fun execute(r: Runnable) {
+        r.run()
+    }
+}
 
 class MyLocationListener : Service(), LocationListener {
     var gnss : GnssStatus? = null
@@ -40,11 +43,11 @@ class MyLocationListener : Service(), LocationListener {
                     arrayOf("altitude", location.altitude.toString()),
                     arrayOf("speed", location.speed.toString()),
                     arrayOf("bearing", location.bearing.toString()),
-                    arrayOf("accuracy, position", location.accuracy.toString()),
+                    arrayOf("accuracy, horizontal", location.accuracy.toString()),
                     arrayOf("accuracy, vertical", location.verticalAccuracyMeters.toString()),
                     arrayOf("accuracy, speed", location.speedAccuracyMetersPerSecond.toString()),
                     arrayOf("accuracy, bearing", location.bearingAccuracyDegrees.toString()),
-                    arrayOf("satellites, total", satsTotal.toString()),
+                    arrayOf("satellites, in view", satsTotal.toString()),
                     arrayOf("satellites, used", satsUsed.toString())
                 )
             )
@@ -57,7 +60,7 @@ class MyLocationListener : Service(), LocationListener {
                     arrayOf("altitude", location.altitude.toString()),
                     arrayOf("speed", location.speed.toString()),
                     arrayOf("bearing", location.bearing.toString()),
-                    arrayOf("accuracy, position", location.accuracy.toString()),
+                    arrayOf("accuracy, horizontal", location.accuracy.toString()),
                     arrayOf("accuracy, vertical", location.verticalAccuracyMeters.toString()),
                     arrayOf("accuracy, speed", location.speedAccuracyMetersPerSecond.toString()),
                     arrayOf("accuracy, bearing", location.bearingAccuracyDegrees.toString()),
@@ -82,15 +85,19 @@ class MyLocationListener : Service(), LocationListener {
     }
 
     override fun onStartCommand(intent: Intent, flags: Int, startId: Int): Int {
-        Toast.makeText(this, "onStartCommand", Toast.LENGTH_SHORT).show()
 
         val locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
         locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0, 0f, this)
-        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0f, this)
+        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER,  0, 0f, this)
         //locationManager.requestLocationUpdates(LocationManager.FUSED_PROVIDER, 0, 0f, this)
+
         locationManager.registerGnssStatusCallback(object : GnssStatus.Callback() {
             override fun onSatelliteStatusChanged(s: GnssStatus) {
                 gnss = s
+            }
+
+            override fun onStopped() {
+                super.onStopped()
             }
         })
 
@@ -100,7 +107,6 @@ class MyLocationListener : Service(), LocationListener {
             "MyLocationListener"
         )
         wl.acquire()
-
 
         return START_STICKY
     }

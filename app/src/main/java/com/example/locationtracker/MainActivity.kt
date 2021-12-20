@@ -1,12 +1,14 @@
 package com.example.locationtracker
 import android.Manifest
 import android.app.Activity
+import android.app.AlertDialog
 import android.content.*
 import android.content.pm.PackageManager
 import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
+import android.icu.text.SimpleDateFormat
 import android.net.Uri
 import android.provider.DocumentsContract
 import android.provider.MediaStore
@@ -19,6 +21,16 @@ import java.io.FileNotFoundException
 import java.io.FileOutputStream
 import java.io.IOException
 import android.os.*
+import android.view.WindowManager
+import android.os.PowerManager
+import android.os.PowerManager.WakeLock
+import android.text.format.DateFormat
+import java.util.*
+import android.content.DialogInterface
+
+
+
+
 
 lateinit var saveFile : LocalJSONFileManager
 var satellitesUsed = 0
@@ -46,7 +58,7 @@ class MainActivity : AppCompatActivity() {
     private val LAST_OPENED_URI_KEY =
         "com.example.android.actionopendocument.pref.LAST_OPENED_URI_KEY"
 
-    //private lateinit var wakeLock: PowerManager.WakeLock
+    private lateinit var wl: PowerManager.WakeLock
     var Seconds = 0f
 
 
@@ -97,9 +109,13 @@ class MainActivity : AppCompatActivity() {
 
     private fun createFile(pickerInitialUri: Uri) {
         val intent = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
+            val pattern = "yyyy-MM-dd"
+            val simpleDateFormat = SimpleDateFormat(pattern)
+            val date: String = simpleDateFormat.format(Date())
+
             addCategory(Intent.CATEGORY_OPENABLE)
             type = "application/text"
-            putExtra(Intent.EXTRA_TITLE, "data.txt")
+            putExtra(Intent.EXTRA_TITLE, date+"_"+android.os.Build.MODEL+"_DATA.txt")
 
             // Optionally, specify a URI for the directory that should be opened in
             // the system file picker before your app creates the document.
@@ -112,14 +128,14 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
+
+        val WMLP = window.attributes
+        WMLP.screenBrightness = 0f
+        window.attributes = WMLP
 
         saveFile = LocalJSONFileManager(this, "myfile")
-
-        //val powerManager = getSystemService(POWER_SERVICE) as PowerManager
-        //wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "LocationTracker:wakelock")
-        //wakeLock.acquire()
-
 
 
         val mainHandler = Handler(Looper.getMainLooper())
@@ -179,10 +195,8 @@ class MainActivity : AppCompatActivity() {
 
         button.setOnClickListener(object : View.OnClickListener {
             override fun onClick(v: View?) {
-                //your implementation goes here
 
-
-                createFile(MediaStore.Files.getContentUri("external"))
+               createFile(MediaStore.Files.getContentUri("external"))
 
 
 
@@ -213,15 +227,35 @@ class MainActivity : AppCompatActivity() {
         }
 
 
-/*        Intent(this, MySensorListener::class.java).also { intent ->
-            startService(intent)
-
-        }
-*/
 
     }
 
-        override fun onRequestPermissionsResult(
+        override fun onPause()
+        {
+            super.onPause()
+            //Toast.makeText(this, "Location Tracker Paused", Toast.LENGTH_SHORT).show()
+        }
+
+        override fun onResume()
+        {
+            super.onResume()
+            Toast.makeText(this, "Location Tracker Resume", Toast.LENGTH_SHORT).show()
+
+        }
+
+    override fun onDestroy(){
+        super.onDestroy()
+        Toast.makeText(this, "Location Tracker Destroyed", Toast.LENGTH_SHORT).show()
+
+    }
+
+    override fun onStop() {
+        super.onStop()
+        Toast.makeText(this, "Location Tracker Stop", Toast.LENGTH_SHORT).show()
+
+    }
+
+    override fun onRequestPermissionsResult(
             requestCode: Int,
             permissions: Array<out String>,
             grantResults: IntArray

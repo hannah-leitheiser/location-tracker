@@ -22,7 +22,7 @@
             android:name=".MySensorListener"
             android:enabled="true"
             android:exported="true"
-            android:foregroundServiceType="microphone"></service>
+             />
 
         <activity
             android:name=".MySensorListener"

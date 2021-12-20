@@ -1,9 +1,28 @@
 package com.example.locationtracker
 import android.content.Context
 
+
 class LocalJSONFileManager(context: Context, fileName : String) {
     val fileName = fileName
     val context = context
+
+    fun convertTimestampToDecimal(timeStampMs : Long) : String {
+        var outputString : String = (timeStampMs/1000).toString() + "."
+        val decimal =  ("000" + (timeStampMs%1000).toString())
+        outputString = outputString + decimal.substring( decimal.length - 3)
+        return outputString
+
+    }
+
+
+    fun formatResult(result : Int, specialValues : Array<Int>, specials : Array<String>) : String {
+        for(i in 0..specials.size-1) {
+            if(result == specialValues[i])
+                return specials[i]
+        }
+        return result.toString()
+    }
+
 
     public fun writeData(
         timeStampms: Long,
@@ -19,14 +38,13 @@ class LocalJSONFileManager(context: Context, fileName : String) {
 
     private fun formatJSONData(
         phoneName: String,
-        timeStampms: Long,
+        timeStampMs: Long,
         measurementType: String,
         propertyArray: Array<Array<Array<String>>>
     ): String {
-        var outputJSON = "*".repeat(32) + "\n" +
-                "{ \"source\"            : \"" + phoneName + "\",\n" +
-                "  \"timestamp\"         : \"" + timeStampms.toString() + "\",\n" +
-                "  \"measurement_type\"  : \"" + measurementType + "\",\n"
+        var outputJSON = "{\"source\"            : \"" + phoneName + "\",\n" +
+                "  \"timestamp\"         : \"" + convertTimestampToDecimal(timeStampMs) + "\",\n" +
+                "  \"measurement type\"  : \"" + measurementType + "\",\n"
 
         outputJSON = outputJSON +
                 "  \"data\"              : [ \n"
@@ -49,6 +67,7 @@ class LocalJSONFileManager(context: Context, fileName : String) {
 
         }
         outputJSON = outputJSON + " ]\n}\n"
+        outputJSON = outputJSON + "*".repeat(32) + "\n"
         return outputJSON
 
     }

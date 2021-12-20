@@ -5,11 +5,15 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.net.wifi.ScanResult.*
 import android.net.wifi.WifiManager
 import android.os.*
+import android.telephony.CellInfo
 
 class MyWifiScanListener : Service() {
     private lateinit var wifiManager: WifiManager
+    private lateinit var wl: PowerManager.WakeLock
+
 
     override fun onBind(intent: Intent): IBinder {
         TODO("Return the communication channel to the service.")
@@ -55,13 +59,13 @@ class MyWifiScanListener : Service() {
 
 
         })
-        val wl: PowerManager.WakeLock
         val pm = getSystemService(POWER_SERVICE) as PowerManager
         wl = pm.newWakeLock(
             PowerManager.PARTIAL_WAKE_LOCK,
             "MyWifiScanListener"
         )
-        wl.acquire()
+        if(!wl.isHeld())
+            wl.acquire()
 
 
         return START_STICKY
@@ -83,19 +87,117 @@ class MyWifiScanListener : Service() {
             val wifiTimestamp = ((results[0].timestamp / 1000L) + bootTime)
             if ((wifiTimestamp < earliestTimestamp))
                 earliestTimestamp = wifiTimestamp
-            if(results[i].level > bestWifiLevel) {
+            if (results[i].level > bestWifiLevel) {
                 bestWifiLevel = results[i].level
                 bestWifi = results[i].SSID + "_" + results[i].level.toString()
-                }
-            dataPayloadMutable.add(
-                arrayOf(
-                    arrayOf("BSSID", results[i].BSSID.toString()),
-                    arrayOf("SSID", results[i].SSID.toString()),
-                    arrayOf("level", results[i].level.toString()),
-                    arrayOf("frequency", results[i].frequency.toString()),
-                    arrayOf("timestamp", wifiTimestamp.toString())
+            }
+            if (results[i].channelWidth == CHANNEL_WIDTH_20MHZ) {
+                dataPayloadMutable.add(
+                    arrayOf(
+                        arrayOf("BSSID", results[i].BSSID.toString()),
+                        arrayOf("SSID", results[i].SSID.toString()),
+                        arrayOf("level", results[i].level.toString()),
+                        arrayOf("frequency", results[i].frequency.toString()),
+                        arrayOf(
+                            "bandwidth",
+                            saveFile.formatResult(
+                                results[i].channelWidth,
+                                arrayOf(
+                                    CHANNEL_WIDTH_20MHZ,
+                                    CHANNEL_WIDTH_40MHZ,
+                                    CHANNEL_WIDTH_80MHZ,
+                                    CHANNEL_WIDTH_160MHZ,
+                                    CHANNEL_WIDTH_80MHZ_PLUS_MHZ
+                                ),
+                                arrayOf(
+                                    "20MHz",
+                                    "40MHz",
+                                    "80MHz",
+                                    "160MHz",
+                                    "80MHz+80MHz"
+                                )
+                            )
+                        ),
+                        arrayOf(
+                            "timestamp",
+                            saveFile.convertTimestampToDecimal(wifiTimestamp).toString()
+                        )
+                    )
                 )
-            )
+            } else {
+                if (results[i].channelWidth == CHANNEL_WIDTH_80MHZ_PLUS_MHZ) {
+
+                    dataPayloadMutable.add(
+                        arrayOf(
+                            arrayOf("BSSID", results[i].BSSID.toString()),
+                            arrayOf("SSID", results[i].SSID.toString()),
+                            arrayOf("level", results[i].level.toString()),
+                            arrayOf("frequency", results[i].frequency.toString()),
+                            arrayOf(
+                                "bandwidth",
+                                saveFile.formatResult(
+                                    results[i].channelWidth,
+                                    arrayOf(
+                                        CHANNEL_WIDTH_20MHZ,
+                                        CHANNEL_WIDTH_40MHZ,
+                                        CHANNEL_WIDTH_80MHZ,
+                                        CHANNEL_WIDTH_160MHZ,
+                                        CHANNEL_WIDTH_80MHZ_PLUS_MHZ
+                                    ),
+                                    arrayOf(
+                                        "20MHz",
+                                        "40MHz",
+                                        "80MHz",
+                                        "160MHz",
+                                        "80MHz+80MHz"
+                                    )
+                                )
+                            ),
+                            arrayOf("frequency, center0", results[i].centerFreq0.toString()),
+                            arrayOf("frequency, center1", results[i].centerFreq1.toString()),
+                            arrayOf(
+                                "timestamp",
+                                saveFile.convertTimestampToDecimal(wifiTimestamp).toString()
+                            )
+                        )
+                    )
+                } else {
+                    dataPayloadMutable.add(
+                        arrayOf(
+                            arrayOf("BSSID", results[i].BSSID.toString()),
+                            arrayOf("SSID", results[i].SSID.toString()),
+                            arrayOf("level", results[i].level.toString()),
+                            arrayOf("frequency", results[i].frequency.toString()),
+                            arrayOf(
+                                "bandwidth",
+                                saveFile.formatResult(
+                                    results[i].channelWidth,
+                                    arrayOf(
+                                        CHANNEL_WIDTH_20MHZ,
+                                        CHANNEL_WIDTH_40MHZ,
+                                        CHANNEL_WIDTH_80MHZ,
+                                        CHANNEL_WIDTH_160MHZ,
+                                        CHANNEL_WIDTH_80MHZ_PLUS_MHZ
+                                    ),
+                                    arrayOf(
+                                        "20MHz",
+                                        "40MHz",
+                                        "80MHz",
+                                        "160MHz",
+                                        "80MHz+80MHz"
+                                    )
+                                )
+                            ),
+                            arrayOf("frequency, center", results[i].centerFreq0.toString()),
+                            arrayOf(
+                                "timestamp",
+                                saveFile.convertTimestampToDecimal(wifiTimestamp).toString()
+                            )
+                        )
+                    )
+
+                }
+            }
         }
 
         saveFile.writeData(earliestTimestamp, "wifi scan", dataPayloadMutable.toTypedArray())
@@ -109,5 +211,10 @@ class MyWifiScanListener : Service() {
         // handle failure: new scan did NOT succeed
         // consider using old scan results: these are the OLD results!
         // val results = wifiManager.scanResults
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        wl.release()
     }
 }
