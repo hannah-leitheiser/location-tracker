@@ -31,26 +31,11 @@ class MySensorListener : Service(), SensorEventListener {
     private lateinit var pressureSensor: Sensor
     private lateinit var rotationSensor: Sensor
     private lateinit var accelSensor: Sensor
-    private lateinit var wl: PowerManager.WakeLock
     private var rotationVector : FloatArray = FloatArray( 0 )
     var lastTimeRan : Long = 0L
 
     private var accelerationArray : MutableList<FloatArray> = mutableListOf()
     private var accelerationTimestamps : MutableList<Long> = mutableListOf<Long>()
-
-    fun wakeLockInit() {
-        val pm = getSystemService(POWER_SERVICE) as PowerManager
-        wl = pm.newWakeLock(
-            PowerManager.PARTIAL_WAKE_LOCK,
-            "MySensorListener"
-        )
-    }
-
-
-    fun wakeLockAquire(){
-        if(!wl.isHeld())
-            wl.acquire()
-    }
 
 
     fun flush()
@@ -94,9 +79,6 @@ class MySensorListener : Service(), SensorEventListener {
         } else {
         }
 
-        wakeLockInit()
-        wakeLockAquire()
-
         val mainHandler = Handler(Looper.getMainLooper())
 
         mainHandler.post(object : Runnable {
@@ -110,7 +92,6 @@ class MySensorListener : Service(), SensorEventListener {
                 registerSensorListeners()
                 flush()
 
-                wakeLockAquire()
                 if(accelerationTimestamps.size > 1) {
 
                     var accelX = 0f
@@ -161,15 +142,6 @@ class MySensorListener : Service(), SensorEventListener {
         return null
     }
 
-    override fun onCreate() {
-        super.onCreate()
-
-
-
-    }
-
-
-
     override fun onSensorChanged(event: SensorEvent) {
         if( event.sensor.type == Sensor.TYPE_ROTATION_VECTOR) {
             rotationVector = event.values
@@ -205,7 +177,6 @@ class MySensorListener : Service(), SensorEventListener {
         Pressure = Pressure + 1
 
         PressureC = pres
-        wakeLockAquire()
     }
 
     fun saveAcceleration( values : FloatArray, duration : Long ) {
@@ -241,7 +212,6 @@ class MySensorListener : Service(), SensorEventListener {
 
         saveFile.writeData(System.currentTimeMillis(), "rotation vector", meas)
 
-        wakeLockAquire()
 
     }
 
@@ -257,6 +227,5 @@ class MySensorListener : Service(), SensorEventListener {
     override fun onDestroy() {
         super.onDestroy()
         sensorManager.unregisterListener(this)
-        wl.release()
     }
 }

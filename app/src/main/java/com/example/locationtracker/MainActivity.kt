@@ -2,6 +2,8 @@ package com.example.locationtracker
 import android.R.string
 import android.app.Activity
 import android.app.AlertDialog
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.content.*
 import android.content.pm.PackageManager
 import android.icu.text.SimpleDateFormat
@@ -9,9 +11,6 @@ import android.net.Uri
 import android.provider.DocumentsContract
 import android.provider.MediaStore
 import android.view.View
-import android.widget.Button
-import android.widget.TextView
-import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import java.io.FileNotFoundException
 import java.io.FileOutputStream
@@ -22,8 +21,8 @@ import android.os.PowerManager
 import android.text.format.DateUtils
 import java.util.*
 import android.content.DialogInterface
-import android.widget.EditText
-
+import android.util.Log
+import android.widget.*
 
 lateinit var saveFile : LocalJSONFileManager
 var satellitesUsed = 0
@@ -57,6 +56,24 @@ class MainActivity : AppCompatActivity() {
     private var startTime = 0L
     private var stopTime = 0L
     var lastPresses : LongArray = longArrayOf( 0,0,0,0,0)
+
+    fun wakeLockInit() {
+        val pm = getSystemService(POWER_SERVICE) as PowerManager
+        wl = pm.newWakeLock(
+            PowerManager.PARTIAL_WAKE_LOCK,
+            "MainActivity:MainWakeLock"
+        )
+    }
+
+    fun wakeLockAquire(){
+        while(!wl.isHeld())
+            wl.acquire()
+    }
+    fun wakeLockRelease(){
+        if(wl.isHeld())
+            wl.release()
+    }
+
 
     private fun getDateTime(s: Long): String? {
         try {
@@ -120,7 +137,7 @@ class MainActivity : AppCompatActivity() {
 
             addCategory(Intent.CATEGORY_OPENABLE)
             type = "application/text"
-            putExtra(Intent.EXTRA_TITLE, date+"_"+android.os.Build.MODEL+"_DATA.txt")
+            putExtra(Intent.EXTRA_TITLE, android.os.Build.MODEL+"_" + date + "_DATA.txt")
 
             // Optionally, specify a URI for the directory that should be opened in
             // the system file picker before your app creates the document.
@@ -135,6 +152,11 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
+        Log.i("LT","test")
+
+
+        wakeLockInit()
+        wakeLockAquire()
 
         val WMLP = window.attributes
         WMLP.screenBrightness = 0f
@@ -148,19 +170,7 @@ class MainActivity : AppCompatActivity() {
         mainHandler.post(object : Runnable {
             override fun run() {
 
-                /*if( !wakeLock.isHeld() ) {
-                    wakeLock.acquire()
-                    findViewById<TextView>(R.id.textStatus).text = "Attempting to Aquire Wake Lock"
-
-                }
-                if(wakeLock.isHeld()) {
-                    findViewById<TextView>(R.id.textStatus).text = "Wake Lock Held"
-                }*/
-
                 Seconds = Seconds + 0.2f
-
-
-
 
                 findViewById<TextView>(R.id.info).text =
                     "-------------------------------------------\n" +
@@ -190,20 +200,11 @@ class MainActivity : AppCompatActivity() {
                 else
                     findViewById<TextView>(R.id.duration).text = ""
 
-
-
-
-
-
-
                 mainHandler.postDelayed(this, 200)
             }
         })
 
         //val success = wifiManager.startScan()
-
-
-
 
         getLocation()
 
@@ -236,26 +237,32 @@ class MainActivity : AppCompatActivity() {
 
                 if((lastPresses[4] - lastPresses[0] < 1000) && (stopTime > startTime) && ((stopTime - startTime) < (86400L * 1000L)) ) {
 
+                    val contextText = findViewById<ToggleButton>(R.id.toggleButton).text.toString()
                     val show = AlertDialog.Builder(this@MainActivity)
                         .setTitle("Title")
-                        .setMessage("Do you really want to save " + findViewById<EditText>(R.id.editLocationLabel).text+"?")
+                        .setMessage("Do you really want to save " + findViewById<EditText>(R.id.editLocationLabel).text.toString()+ ":" + contextText +  " for " +
+                                DateUtils.formatElapsedTime((stopTime - startTime)/1000L)+"?")
                         .setIcon(android.R.drawable.ic_dialog_alert)
                         .setPositiveButton(
                             "Yes",
                             DialogInterface.OnClickListener { dialog, whichButton ->
                                 Toast.makeText(
                                     this@MainActivity,
-                                    "Saving",
+                                    "Saving "+ findViewById<EditText>(R.id.editLocationLabel).text.toString(),
                                     Toast.LENGTH_SHORT
                                 ).show()
                                 saveFile.writeData( startTime, "specified location",
                                     arrayOf(
                                     arrayOf(
-                                 arrayOf( "context", "The Home Depot"),
-                                 arrayOf( "label", findViewById<EditText>(R.id.editLocationLabel).text.toString())
+                                 arrayOf( "context", contextText),
+                                 arrayOf( "label", findViewById<EditText>(R.id.editLocationLabel).text.toString()),
+                                 arrayOf( "start time", saveFile.convertTimestampToDecimal(startTime)),
+                                 arrayOf( "end time", saveFile.convertTimestampToDecimal(stopTime))
 
                                 )
                                 ))
+                                startTime = 0
+                                stopTime = 0
                             })
                         .setNegativeButton("No!", null).show()
                 }
@@ -263,32 +270,25 @@ class MainActivity : AppCompatActivity() {
             }
         }
         )
-
-
-
-
     }
 
     private fun getLocation() {
 
-        Intent(this, MyLocationListener::class.java).also { intent ->
-            startService(intent)
-        }
-            Intent(this, MyWifiScanListener::class.java).also { intent ->
-                startService(intent)
-            }
-
-                Intent(this, MyCellInfoListener::class.java).also { intent ->
-                    startService(intent)
-
-            }
-
-        Intent(this, MySensorListener::class.java).also { intent ->
-            startService(intent)
-
+        Intent(applicationContext, MyCellInfoListener::class.java).also {
+            intent -> startService(intent)
         }
 
+        Intent(applicationContext, MyLocationService::class.java).also {
+                intent -> startService(intent)
+        }
 
+        Intent(applicationContext, MyWifiScanListener::class.java).also {
+                intent -> startService(intent)
+        }
+
+        Intent(applicationContext, MySensorListener::class.java).also {
+                intent -> startService(intent)
+        }
 
     }
 
@@ -307,6 +307,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onDestroy(){
         super.onDestroy()
+        wakeLockRelease()
         Toast.makeText(this, "Location Tracker Destroyed", Toast.LENGTH_SHORT).show()
 
     }

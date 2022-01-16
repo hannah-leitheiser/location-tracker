@@ -43,13 +43,15 @@
 
     <EditText
         android:id="@+id/editLocationLabel"
-        android:layout_width="188dp"
-        android:layout_height="175dp"
+        android:layout_width="155dp"
+        android:layout_height="141dp"
         android:ems="10"
-        android:inputType="textPersonName"
+        android:inputType="textMultiLine"
+        android:nestedScrollingEnabled="false"
         android:text="Name"
+        android:textIsSelectable="true"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/info" />
+        app:layout_constraintTop_toBottomOf="@+id/toggleButton" />
 
     <Button
         android:id="@+id/startTimer"
@@ -97,5 +99,16 @@
         android:text="TextView"
         app:layout_constraintStart_toEndOf="@+id/editLocationLabel"
         app:layout_constraintTop_toBottomOf="@+id/stopTime" />
+
+    <ToggleButton
+        android:id="@+id/toggleButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="ToggleButton"
+        android:textOff="The Home Depot"
+        android:textOn="Apartment"
+        app:layout_constraintTop_toTopOf="@+id/startTimer"
+        tools:layout_editor_absoluteX="26dp" />
+
 
 </androidx.constraintlayout.widget.ConstraintLayout>

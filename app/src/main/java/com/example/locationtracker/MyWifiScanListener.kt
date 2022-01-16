@@ -12,7 +12,6 @@ import android.telephony.CellInfo
 
 class MyWifiScanListener : Service() {
     private lateinit var wifiManager: WifiManager
-    private lateinit var wl: PowerManager.WakeLock
 
 
     override fun onBind(intent: Intent): IBinder {
@@ -59,14 +58,6 @@ class MyWifiScanListener : Service() {
 
 
         })
-        val pm = getSystemService(POWER_SERVICE) as PowerManager
-        wl = pm.newWakeLock(
-            PowerManager.PARTIAL_WAKE_LOCK,
-            "MyWifiScanListener"
-        )
-        if(!wl.isHeld())
-            wl.acquire()
-
 
         return START_STICKY
 
@@ -215,6 +206,5 @@ class MyWifiScanListener : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
-        wl.release()
     }
 }

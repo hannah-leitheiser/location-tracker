@@ -5,8 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.*
 import android.telephony.*
-import android.widget.TextView
-import androidx.core.content.ContextCompat
+import android.util.Log
 
 fun formatResult(result : Int, specialValues : Array<Int>, specials : Array<String>) : String {
     for(i in 0..specials.size-1) {
@@ -41,35 +40,25 @@ class MyCellInfoListener : Service()  {
 
     private lateinit var telephony: TelephonyManager
     private lateinit var lastCellList : MutableList<CellInfo>
-    private lateinit var wl: PowerManager.WakeLock
-
-    fun wakeLockInit() {
-        val pm = getSystemService(POWER_SERVICE) as PowerManager
-        wl = pm.newWakeLock(
-            PowerManager.PARTIAL_WAKE_LOCK,
-            "MyCellInfoListener"
-        )
-    }
-
-    fun wakeLockAquire(){
-        if(!wl.isHeld())
-            wl.acquire()
-    }
 
     override fun onBind(intent: Intent): IBinder {
         TODO("Return the communication channel to the service.")
     }
 
     override fun onStartCommand(intent: Intent, flags: Int, startId: Int): Int {
-
+        Log.i("MyCellInfoListener", "Start")
         telephony = getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
         lastCellList = telephony.allCellInfo
+
+        Log.i("MyCellInfoListener", "Start2")
 
         // I can't get the callback to work, just use a looper
         val mainHandler = Handler(Looper.getMainLooper())
 
         mainHandler.post(object : Runnable {
             override fun run() {
+                Log.i("CellInfo", "Checking Cell List")
+
                 var newCells = telephony.allCellInfo
                 if(newCells != lastCellList)
                 {
@@ -80,12 +69,12 @@ class MyCellInfoListener : Service()  {
                 mainHandler.postDelayed(this, 1000)
             }
         })
-        wakeLockInit()
-        wakeLockAquire()
         return Service.START_STICKY
 
     }
     fun onCellInfoChanged(p0: MutableList<CellInfo>) {
+        Log.i("CellInfo", "onCellInfoChanged")
+
         var dataPayloadMutable: MutableList<Array<Array<String>>> =
             mutableListOf<Array<Array<String>>>()
 
@@ -517,7 +506,6 @@ class MyCellInfoListener : Service()  {
         saveFile.writeData(earliestTimestamp, "cell scan", dataPayloadMutable.toTypedArray())
 
         CellScanCount++
-        wakeLockAquire()
 
     }
 

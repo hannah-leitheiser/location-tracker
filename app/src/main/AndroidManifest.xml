@@ -2,13 +2,12 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.example.locationtracker">
 
-    <!-- Always include this permission -->
-    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" /> <!-- Include only if your app benefits from precise location access. -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
-    <uses-permission android:name="android.permission.HIGH_SAMPLING_RATE_SENSORS" />
     <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
 
     <application
@@ -21,35 +20,33 @@
         <service
             android:name=".MySensorListener"
             android:enabled="true"
-            android:exported="true"
-             />
+            android:exported="false">
+        </service>
 
-        <activity
-            android:name=".MySensorListener"
-            android:exported="false" />
-
-        <service
-            android:name=".MyCellInfoListener"
-            android:enabled="true"
-            android:exported="true"
-            android:foregroundServiceType="location" />
         <service
             android:name=".MyWifiScanListener"
             android:enabled="true"
-            android:exported="true"
-            android:foregroundServiceType="location" />
+            android:exported="false"
+            android:foregroundServiceType="location">
+        </service>
         <service
-            android:name=".MyLocationListener"
+            android:name=".MyLocationService"
             android:enabled="true"
-            android:exported="true"
-            android:foregroundServiceType="location" />
+            android:exported="false"
+            android:foregroundServiceType="location">
+        </service>
+        <service
+            android:name=".MyCellInfoListener"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="location">
+        </service>
 
         <activity
             android:name=".MainActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
